@@ -1,0 +1,134 @@
+---
+title: "Your MPADQ Results: Reading and Revisiting Your Scores"
+sidebarTitle: "Results"
+description: "After submitting, the MPADQ computes your scores across Symptomatology and Contributing Factors categories. Learn how to read your results and revisit them later."
+---
+
+The moment you click **Submit** on the final Likert page, your browser is redirected to `/finish/` and your scores are computed server-side in real time. There is no waiting period — the results page loads fully populated with your scores the first time you see it. This page explains how those scores are calculated, how the results page is structured, and how you can return to your results at any time using your original license key.
+
+## How Scores Are Calculated
+
+Scoring happens in three layers: sub-category averages, broad-category averages, and an overall score. All computation takes place in `finish/index.php` immediately on page load.
+
+### Sub-Category Scores
+
+For each of the 24 sub-categories, the server collects all `LikertAnswer` rows linked to that sub-category (via `sub_category_id1` **or** `sub_category_id2` on the `LikertQuestion` table) and applies the following algorithm:
+
+<Steps>
+  <Step title="Separate N/A answers">
+    Any answer stored as `6` (N/A) is counted separately and excluded from the sum.
+  </Step>
+  <Step title="Check the N/A threshold">
+    The minimum number of required non-N/A answers is set to `1` for sub-categories with only 2 questions, or `2` for all larger sub-categories. If the number of N/A answers exceeds this threshold — that is, if **more than the minimum** of the sub-category's questions were skipped — the entire sub-category is assigned a score of `N/A` (stored internally as `-1`).
+  </Step>
+  <Step title="Compute the average">
+    If the N/A threshold is not exceeded, the non-N/A answers are summed and divided by the count of non-N/A answers. The result is rounded to the nearest integer.
+  </Step>
+  <Step title="Store the result">
+    The computed score (or `-1` for N/A) is inserted into the `SubCategoryResult` table.
+  </Step>
+</Steps>
+
+```sql
+-- Simplified representation of the sub-category query
+SELECT LikertAnswer.answer
+FROM LikertAnswer
+JOIN LikertQuestion
+  ON LikertAnswer.question_id = LikertQuestion.id
+ AND LikertQuestion.sub_category_id1 = :sub_id
+ AND LikertAnswer.license_id = :license_id;
+```
+
+### Broad-Category Scores
+
+After all sub-category scores are stored, the server computes a score for each broad category by averaging the sub-category scores that belong to it, **excluding any sub-categories marked N/A**.
+
+| Broad Category | Sub-Category IDs Included |
+|----------------|--------------------------|
+| Symptomatology | 1, 2, 3 |
+| Contributing Factors | 4 through 24 |
+
+If every sub-category in a broad category is N/A, the broad category itself is scored N/A.
+
+### Overall Score
+
+An overall score is computed by averaging **all** non-N/A sub-category scores across both broad categories combined.
+
+### Score Display Format
+
+All scores are presented as percentages. Because answers were converted to a 0–100 scale when stored (see the [Likert Section](/questionnaire/likert-section)), a raw average of `75` is displayed as `75%`. An N/A result is shown as the string `"N/A"` rather than a number.
+
+## Results Page Structure
+
+The results page at `/finish/` is organized as a navigable document. A table of contents at the top links directly to each section so you can jump to any category without scrolling through the entire page.
+
+```text
+Table of Contents
+├── Overall
+├── Category Scoring (explanatory introduction)
+├── Symptomatology
+│   ├── Physical Symptoms
+│   ├── Cognitive Symptoms
+│   └── Behavioral Symptoms
+└── Contributing Factors
+    ├── Student-Teacher Relationship
+    ├── Sense of Belonging at School/Career
+    └── … (all 21 sub-categories)
+```
+
+Each section of the results page contains four elements pulled from the database:
+
+| Element | Source |
+|---------|--------|
+| Category name | `LikertAnswerSubCategory.category` or `LikertAnswerBroadCategory.category` |
+| Explanatory text | `text_area1` — describes what the category measures |
+| Your score | Computed result from `SubCategoryResult` or `BroadCategoryResult` |
+| Interpretation text | `text_area2` — contextualizes what your score means |
+
+A **Top** link at the end of each section lets you return to the table of contents instantly.
+
+## Key Deactivation
+
+<Note>
+  When you reach `/finish/` for the first time, your license key is permanently deactivated. The server executes `UPDATE License SET active = false WHERE id = :license_id` before computing your scores. **This means you cannot retake the questionnaire using the same key.** A deactivated key can still be used to *view* your saved results, but it will no longer grant access to the demographic or Likert sections.
+</Note>
+
+## Data Stored After Completion
+
+Your results are saved permanently in two tables:
+
+```text
+SubCategoryResult
+├── license_id       (FK → License.id)
+├── sub_category_id  (FK → LikertAnswerSubCategory.id)
+└── result           INT  (-1 = N/A, or 0–100)
+
+BroadCategoryResult
+├── license_id        (FK → License.id)
+├── broad_category_id (FK → LikertAnswerBroadCategory.id)
+└── result            INT  (-1 = N/A, or 0–100)
+```
+
+Because results are stored rather than recomputed on every visit, your scores will be identical every time you return to view them.
+
+## Revisiting Your Results
+
+<Tip>
+  You can view your completed results at any time by entering your license key on the MPADQ home page. The application detects that the key is deactivated and already has results stored, then redirects you straight to `/finish/` to display your saved scores. You do not need to retake any part of the questionnaire.
+</Tip>
+
+## Explore Your Scores in Detail
+
+Use the links below to learn more about what your scores in each major category actually mean and how to interpret the numbers in context.
+
+<CardGroup cols={3}>
+  <Card title="Score Overview" icon="chart-bar" href="/scores/overview">
+    Understand the overall score and how broad-category averages are weighted.
+  </Card>
+  <Card title="Symptomatology" icon="heart-pulse" href="/scores/symptomatology">
+    Dive into Physical, Cognitive, and Behavioral Symptom scores.
+  </Card>
+  <Card title="Contributing Factors" icon="puzzle-piece" href="/scores/contributing-factors">
+    Explore all 21 sub-categories that reveal the root contributors to your anxiety.
+  </Card>
+</CardGroup>

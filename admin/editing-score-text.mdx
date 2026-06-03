@@ -1,0 +1,159 @@
+---
+title: "Editing Results and Score Interpretation Text"
+sidebarTitle: "Edit Score Text"
+description: "Customize the explanatory text shown alongside each broad category and sub-category score in the results page through the admin dashboard."
+---
+
+After a respondent completes the MPADQ questionnaire, the results page assembles a personalized report by weaving their numeric scores together with explanatory prose pulled from the database. This interpretation text — which provides context before each score and guidance after it — is fully editable through the admin dashboard at `/admin/dashboard/understanding-your-scores-edit/`. No database client or developer access is required to revise it.
+
+## Score Text Structure
+
+The results page organizes scores at two levels of granularity, and each level has its own database table and editing interface.
+
+<CardGroup cols={2}>
+  <Card title="Broad Categories" icon="layer-group">
+    Two top-level groupings — **Symptomatology** and **Contributing Factors** — each with introductory and interpretive text stored in `LikertAnswerBroadCategory`.
+  </Card>
+  <Card title="Sub-Categories" icon="sitemap">
+    Twenty-four sub-categories nested under the broad categories (e.g., *Physical Symptoms*, *Perfectionism and Self-Criticism*, *The Audition Factor*), each with its own text stored in `LikertAnswerSubCategory`.
+  </Card>
+</CardGroup>
+
+### Database Schema
+
+Both tables share the same four-column structure:
+
+```sql
+-- Broad category interpretation text
+CREATE TABLE LikertAnswerBroadCategory (
+  category  VARCHAR(255) NOT NULL UNIQUE,
+  id        INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  text_area1 TEXT,
+  text_area2 TEXT,
+  PRIMARY KEY(id)
+) ENGINE = INNODB;
+
+-- Sub-category interpretation text
+CREATE TABLE LikertAnswerSubCategory (
+  category  VARCHAR(255) NOT NULL UNIQUE,
+  id        INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  text_area1 TEXT,
+  text_area2 TEXT,
+  PRIMARY KEY(id)
+) ENGINE = INNODB;
+```
+
+| Field | Purpose |
+|---|---|
+| `text_area1` | Introductory or context text displayed **before** the user's score for that category. |
+| `text_area2` | Interpretation text displayed **after** the user's score for that category. |
+
+---
+
+## Navigating to Edit Score Text
+
+From the admin dashboard, click the **Edit Understanding Your Scores Text** link. The page at `/admin/dashboard/understanding-your-scores-edit/` presents two separate selection forms:
+
+- **Select a Broad Category** — a dropdown populated from `LikertAnswerBroadCategory` (`id`, `category`)
+- **Select a Sub Category** — a dropdown populated from `LikertAnswerSubCategory` (`id`, `category`)
+
+Choose the appropriate level and click **Edit** to open the text editor for that specific category.
+
+---
+
+## Editing Broad Category Text
+
+The two broad categories are **Symptomatology** and **Contributing Factors**. These are seeded into the database as:
+
+```sql
+INSERT INTO LikertAnswerBroadCategory(category) VALUES("Symptomatology");
+INSERT INTO LikertAnswerBroadCategory(category) VALUES("Contributing Factors");
+```
+
+<Steps>
+  <Step title="Select a broad category">
+    On the **Edit Understanding Your Scores Text** page, use the **Select a Broad Category** dropdown to choose either *Symptomatology* or *Contributing Factors*, then click **Edit**.
+  </Step>
+  <Step title="Edit the two text areas">
+    You are redirected to `/admin/dashboard/understanding-your-scores-edit/edit-broad/`. The page fetches the current `text_area1` and `text_area2` values for the chosen category and pre-fills both multi-line text areas.
+
+    - **Upper text area (`text_area1`)** — Write the introductory text that appears before the user's broad category score. This is a good place for a brief explanation of what the category measures.
+    - **Lower text area (`text_area2`)** — Write the interpretation text that appears after the score. The page labels this area: *"The following text is displayed after a user's score for [Category]."* Use this field to explain what a high or low score means in clinical or practical terms.
+  </Step>
+  <Step title="Submit your changes">
+    Click **Submit**. The form POSTs to `/admin/dashboard/understanding-your-scores-edit/confirm/` with a hidden field `cat_type` set to `Broad`. The confirm page applies the following sanitization to both fields before writing:
+
+    - `real_escape_string()` — escapes SQL special characters
+    - `stripslashes()` — removes escape slashes
+    - `htmlentities()` — converts special characters to HTML entities
+    - `strip_tags()` — strips any HTML or PHP tags
+
+    Two `UPDATE` statements are then executed:
+
+    ```sql
+    UPDATE LikertAnswerBroadCategory SET text_area1 = "<new text>" WHERE id = <id>;
+    UPDATE LikertAnswerBroadCategory SET text_area2 = "<new text>" WHERE id = <id>;
+    ```
+  </Step>
+  <Step title="Confirm and return">
+    The confirm page displays a **Changes Saved** heading and echoes both saved text blocks. Use the **Select Category** link to edit another category, or return to the **Dashboard**.
+  </Step>
+</Steps>
+
+---
+
+## Editing Sub-Category Text
+
+There are 24 sub-categories. Three fall under **Symptomatology**:
+
+- Physical Symptoms
+- Cognitive Symptoms
+- Behavioral Symptoms
+
+The remaining 21 fall under **Contributing Factors**, including sub-categories such as *Student-Teacher Relationship*, *Perfectionism and Self-Criticism*, *Self-Concept of Anxiety*, *Introversion*, *The Audition Factor*, and others.
+
+<Steps>
+  <Step title="Select a sub-category">
+    On the **Edit Understanding Your Scores Text** page, use the **Select a Sub Category** dropdown to choose the sub-category you want to update, then click **Edit**.
+  </Step>
+  <Step title="Edit the two text areas">
+    You are redirected to `/admin/dashboard/understanding-your-scores-edit/edit-sub/`. The page queries `LikertAnswerSubCategory` for the selected ID and pre-fills the same two text areas:
+
+    - **Upper text area (`text_area1`)** — Introductory text shown before the user's sub-category score.
+    - **Lower text area (`text_area2`)** — Interpretation text shown after the score. The page labels this: *"The following text is displayed after a user's score for [Sub-Category]."*
+  </Step>
+  <Step title="Submit your changes">
+    Click **Submit**. The form POSTs to `/admin/dashboard/understanding-your-scores-edit/confirm/` with `cat_type` set to `Sub`. The confirm page sanitizes both fields using the same pipeline as broad category edits, then runs:
+
+    ```sql
+    UPDATE LikertAnswerSubCategory SET text_area1 = "<new text>" WHERE id = <id>;
+    UPDATE LikertAnswerSubCategory SET text_area2 = "<new text>" WHERE id = <id>;
+    ```
+  </Step>
+  <Step title="Confirm and return">
+    The confirm page echoes the saved text for both fields under a **Changes Saved** heading. Repeat the process for any remaining sub-categories that need updating.
+  </Step>
+</Steps>
+
+<Note>
+  Text changes take effect immediately for **all users**, including those revisiting a previous quiz result via a saved link. There is no draft or staging mode — once you click **Submit** on the edit form, the updated text is live in the database and will be served by the results page (`finish/index.php`) on the next page load.
+</Note>
+
+---
+
+## Writing Effective Interpretation Text
+
+<Tip>
+  The most actionable interpretation text points users toward specific resources. If the MPADQ is accompanied by a companion book or course curriculum, reference specific chapter numbers or section titles in `text_area2` for the relevant sub-categories. For example, a high score in *Perfectionism and Self-Criticism* could conclude with: *"See Chapter 4 for exercises on reframing self-critical thought patterns during practice sessions."* Concrete next steps give respondents a clear path forward rather than leaving them with a score and no context for how to act on it.
+</Tip>
+
+Keep the following guidelines in mind when drafting or revising score text:
+
+| Field | Recommended Content |
+|---|---|
+| `text_area1` | Define what the category measures. Briefly describe the behaviors, thoughts, or experiences it captures. Keep it neutral and educational — the user has not yet seen their score. |
+| `text_area2` | Interpret the score in context. Acknowledge the range of possible outcomes and what each implies. Avoid language that could feel stigmatizing; instead, frame findings as areas of awareness and growth. |
+
+<Info>
+  The sanitization pipeline on the confirm page (`htmlentities()` + `strip_tags()`) removes all HTML markup from saved text. Do not attempt to embed HTML formatting such as `<b>`, `<em>`, or `<br>` tags — they will be stripped before the value reaches the database. Use plain prose only.
+</Info>

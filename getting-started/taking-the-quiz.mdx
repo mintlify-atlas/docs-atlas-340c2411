@@ -1,0 +1,97 @@
+---
+title: "Taking the MPADQ: A Walkthrough of the Full Assessment"
+sidebarTitle: "Taking the Quiz"
+description: "Walk through every stage of the MPADQ from key entry to results, including the demographic section, Likert questions, and final score display."
+---
+
+Once you have your access key in hand, taking the MPADQ is a straightforward process — but it requires your full, uninterrupted attention from start to finish. The assessment moves through a demographics section and a longer Likert-scale section before delivering your personalized results. This page walks you through every stage so you know exactly what to expect before you begin.
+
+<Tip>
+  Set aside at least **30 uninterrupted minutes** before you start. Most participants find that half an hour is enough time to answer all 172 questions thoughtfully. Choosing a quiet moment — away from rehearsals, lessons, or other commitments — will help you respond honestly and get the most accurate results.
+</Tip>
+
+## Quiz Flow Overview
+
+The full assessment follows five stages in sequence:
+
+| Stage | Location | What Happens |
+|---|---|---|
+| 1. Key Entry | `/` (homepage) | You enter your 10-character key and click **Start Quiz** |
+| 2. Initialization | `/start/` | Session is established; empty answer rows are created in the database |
+| 3. Demographics | `/demographics/` | 15 background questions about you and your performing experience |
+| 4. Likert Questions | (paginated) | 157 scaled questions, displayed 10 per page (~16 pages) |
+| 5. Results | `/finish/` | Scores are computed and your full results are displayed |
+
+## Full Step-by-Step Walkthrough
+
+<Steps>
+  <Step title="Enter your key on the homepage">
+    Navigate to [performanceanxietyquestionnaire.com](http://performanceanxietyquestionnaire.com), type your 10-character access key into the text field, and click **Start Quiz**. If your key is valid and active, you will be forwarded to `/start/`. See [Access Keys](/getting-started/access-keys) for full details on key validation and error handling.
+  </Step>
+  <Step title="Read the introduction at /start/">
+    The `/start/` page displays a brief introduction to the questionnaire — its purpose, its confidentiality policy, and the one-sitting requirement. Read it carefully before proceeding.
+
+    At this point, the server performs an important initialization step: it deletes any pre-existing answer rows for your license ID and inserts fresh, empty rows for all **15 demographic questions** and all **157 Likert questions**. This ensures your session starts from a clean slate even if you had previously navigated away mid-quiz.
+
+    Click **Begin Questionnaire** to proceed to the demographics section.
+  </Step>
+  <Step title="Complete the demographics section (15 questions)">
+    The demographics section gathers background information about you as a musician. There are **15 questions** in total, presented using a variety of input types:
+
+    - **Radio buttons** — for single-choice categorical answers (e.g., your primary instrument family)
+    - **Select dropdowns** — for choosing from a longer list of options
+    - **Text fields** — for short free-text responses
+    - **Textareas** — for longer written responses
+
+    Answer every question as accurately as you can. Your demographic data helps contextualize your Likert scores and contributes to aggregate research on performance anxiety.
+  </Step>
+  <Step title="Work through the Likert questions (~16 pages)">
+    After demographics, you enter the main body of the assessment: **157 Likert-scale questions** displayed **10 per page**, for approximately 16 pages of questions.
+
+    Each question asks you to rate a statement about your thoughts, feelings, or behaviors on the following scale:
+
+    | Value | Label |
+    |---|---|
+    | 1 | Strongly Disagree |
+    | 2 | Disagree |
+    | 3 | Neutral |
+    | 4 | Agree |
+    | 5 | Strongly Agree |
+    | 6 | N/A |
+
+    Answer every question honestly, even if some seem unrelated to performing. As the introduction explains, your perspective on a wide range of situations contributes to your overall psychological profile, which is central to understanding performance anxiety.
+
+    A **progress bar** is displayed throughout the Likert section so you can track how far through the questionnaire you are.
+
+    <Info>
+      Your answers are submitted **asynchronously** using a background request (jQuery `$.post`) each time you advance to the next page. This means your responses are saved to the database as you go — you will not lose the answers from earlier pages if something goes wrong later in the session. However, this does **not** mean you can close the browser and resume later; your PHP session must remain active for the quiz to continue.
+    </Info>
+
+    Navigate through pages using the **Next** button at the bottom of each question set. You can move forward but should not use your browser's back button, as this may disrupt your session.
+  </Step>
+  <Step title="Submit the quiz on the final page">
+    After you answer the questions on the last Likert page, a **final Submit** button appears. Clicking it sends your completed responses to the server, triggers score computation, and sets your key's `active` flag to `false` in the database.
+
+    This action is **permanent and irreversible** — once submitted, the quiz cannot be retaken with the same key.
+  </Step>
+  <Step title="Review your results at /finish/">
+    After submission, the results page loads automatically at `/finish/`. Your scores are displayed across:
+
+    - **Sub-category scores** — detailed breakdowns of specific anxiety factors
+    - **Broad-category scores** — higher-level groupings that give an overall picture of your anxiety profile
+
+    Each score section is accompanied by explanatory text that helps you interpret what your numbers mean and guides you toward the relevant chapters in *Take Charge of Your Performance Anxiety*.
+
+    Your results are stored permanently. You can return to this page at any time by re-entering your key on the homepage — because your key is now inactive, the system will route you directly back to `/finish/`.
+  </Step>
+</Steps>
+
+## One-Sitting Requirement
+
+The MPADQ must be completed in a single sitting. The quiz uses a **PHP session** to track your progress and maintain your identity across pages. If your session expires — because you closed the browser, lost your connection, or left the page idle for too long — you will need to start over from the beginning. Your key will remain active (and reusable) until you click the final Submit button, so a failed mid-quiz session does not consume your key.
+
+There is no save-and-resume functionality. Plan accordingly before you begin.
+
+## Voluntary Participation
+
+Participation in the MPADQ is entirely voluntary. You may choose to stop at any point before clicking the final Submit button. If you stop early, your key remains active and you can restart the quiz from scratch later.

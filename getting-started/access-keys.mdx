@@ -1,0 +1,93 @@
+---
+title: "How to Get and Use Your MPADQ Access Key"
+sidebarTitle: "Access Keys"
+description: "Your 10-character license key unlocks one quiz attempt. Learn where to find it, how it is validated, and what to do if you have issues."
+---
+
+Every MPADQ quiz attempt is gated by a unique **access key** — a 10-character alphanumeric code that is tied to your license in the database. Your key is generated when you purchase access to the questionnaire, delivered to you with your copy of *Take Charge of Your Performance Anxiety*, and validated each time you visit the homepage. Understanding how keys work will help you avoid common pitfalls and make the most of your one quiz attempt.
+
+## Where Your Key Comes From
+
+Keys are issued through two channels depending on the format of *Take Charge of Your Performance Anxiety* you purchased:
+
+- **Print edition:** Your key is printed on an insert found inside your physical copy of the book.
+- **Ebook or audiobook edition:** Your key is emailed to you automatically after your PayPal purchase is confirmed. Check your inbox (and spam folder) for an email from Einerlei Publishing with the subject line *"Einerlei Publishing: License Key"*.
+
+If you do not yet have a key, you can purchase one directly on the homepage at [performanceanxietyquestionnaire.com](http://performanceanxietyquestionnaire.com) using the PayPal button on that page.
+
+## Key Format
+
+Your key is exactly **10 characters long** and is drawn from uppercase letters (A–Z), lowercase letters (a–z), and digits (0–9). A valid key looks like:
+
+```
+aB3kZ9mQpL
+```
+
+Keys are **case-sensitive** — enter yours exactly as it appears on the insert or in your email. When you submit your key, the system converts it to an MD5 hash before comparing it to the stored value, so even a single character difference (including a wrong case) will result in an invalid-key error.
+
+## How Keys Are Stored
+
+Behind the scenes, the MPADQ stores keys in a `License` table in MySQL. Each row holds:
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `INT UNSIGNED` | Auto-incremented unique identifier for this license |
+| `licenseKey` | `VARCHAR(255)` | MD5 hash of the original 10-character key |
+| `active` | `BOOL` | `1` (true) when unused; `0` (false) after quiz completion |
+
+The plaintext key is never stored — only its hash. This means the system can verify your key without ever keeping the original value on file.
+
+## Entering Your Key
+
+<Steps>
+  <Step title="Go to the homepage">
+    Navigate to [performanceanxietyquestionnaire.com](http://performanceanxietyquestionnaire.com). You will see a text field and a **Start Quiz** button.
+  </Step>
+  <Step title="Type your key">
+    Enter your 10-character key exactly as it appears on your book insert or in your email. The field is case-sensitive, so double-check for any capital or lowercase differences.
+  </Step>
+  <Step title="Click 'Start Quiz'">
+    Submit the form. The server will look up your key in the database and route you based on the result.
+  </Step>
+  <Step title="Proceed based on the outcome">
+    See the three possible outcomes below.
+  </Step>
+</Steps>
+
+## Outcomes After Submission
+
+When you submit your key, `keySubmit.php` performs three checks in order — existence, activity, and validity — and routes you accordingly:
+
+| Outcome | What Happened | Where You Land |
+|---|---|---|
+| ✅ Valid and active | Key found in database; `active = true` | Redirected to `/start/` to begin the quiz |
+| 🔁 Valid but inactive | Key found; `active = false` (quiz already submitted) | Redirected to `/finish/` to view your existing results |
+| ❌ Invalid | Key not found in database | Returned to homepage with an error message |
+
+The exact error message shown for an invalid key is:
+
+> **Invalid key. Please follow the link below to purchase a key to the questionnnaire.**
+
+If you see this message, verify that you typed the key correctly, paying attention to case and any characters that look similar (e.g., `0` vs `O`, `1` vs `l`).
+
+<Note>
+  Each key unlocks **exactly one quiz attempt**. Once you click the final submit button at the end of the Likert section, your key's `active` flag is set to `false` in the database. You cannot retake the quiz with the same key — but you can re-enter it at any time to return to your results.
+</Note>
+
+<Warning>
+  There is no way to save progress mid-quiz. If you close your browser, lose your internet connection, or navigate away before clicking the final submit, your session will be lost and you will need to start over from the beginning — using the same key, which will remain active until you complete and submit the quiz.
+</Warning>
+
+## Purchasing a Key
+
+If you do not have a key, use the PayPal button on the homepage at [performanceanxietyquestionnaire.com](http://performanceanxietyquestionnaire.com). After a successful payment is verified, a key is generated automatically and emailed to the address associated with your PayPal account. For questions about purchases, contact Einerlei Publishing at **heathernicolesoprano@gmail.com**.
+
+## Re-Viewing Your Results
+
+After you have completed the quiz, your results are stored permanently against your license ID. To view them again:
+
+1. Go to [performanceanxietyquestionnaire.com](http://performanceanxietyquestionnaire.com).
+2. Enter your original 10-character key in the text field.
+3. Click **Start Quiz** — because your key is now inactive, you will be redirected to `/finish/` where your full results are displayed.
+
+You do not need to save or screenshot your results immediately; they will remain accessible as long as you have your key.

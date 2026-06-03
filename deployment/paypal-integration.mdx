@@ -1,0 +1,136 @@
+---
+title: "PayPal IPN Integration for Automated Key Delivery"
+sidebarTitle: "PayPal Integration"
+description: "Configure PayPal's Instant Payment Notification to automatically generate and email license keys to customers when they purchase through the MPADQ site."
+---
+
+The MPADQ uses PayPal's Instant Payment Notification (IPN) system to deliver license keys automatically. When a customer completes a purchase through the PayPal-hosted button on the site, PayPal sends a POST request to the IPN handler at `purchaseSuccessful/authenticate_ipn.php`. The handler validates the notification with PayPal, generates a unique license key, inserts it into the `License` table, and emails it to the buyer — all without any manual admin intervention.
+
+## How IPN Works
+
+<Steps>
+  <Step title="Customer Completes Purchase">
+    The buyer clicks the PayPal-hosted button on the homepage (`hosted_button_id = UF3W3QV8WMHZA`, item name `QuizKey`) and completes payment on PayPal's site.
+  </Step>
+  <Step title="PayPal POSTs to the IPN Handler">
+    PayPal sends a POST request containing the transaction details to the URL you configure as the IPN notification endpoint — this must point to `purchaseSuccessful/authenticate_ipn.php` over HTTPS.
+  </Step>
+  <Step title="Handler Reads and Constructs Validation Request">
+    The script reads the raw POST body from `php://input`, URL-encodes each field, and prepends `cmd=_notify-validate` to construct a verification request.
+  </Step>
+  <Step title="Handler POSTs Back to PayPal for Validation">
+    Using cURL, the script posts the validation request back to PayPal's endpoint. The target URL is determined by the `USE_SANDBOX` constant:
+
+    - **Sandbox** (`USE_SANDBOX = 1`): `https://www.sandbox.paypal.com/cgi-bin/webscr`
+    - **Live** (`USE_SANDBOX = 0`): `https://www.paypal.com/cgi-bin/webscr`
+
+    SSL peer verification is enforced (`CURLOPT_SSL_VERIFYPEER = 1`, `CURLOPT_SSL_VERIFYHOST = 2`).
+  </Step>
+  <Step title="Handler Acts on the Validation Response">
+    PayPal responds with either `VERIFIED` or `INVALID`.
+
+    - **`VERIFIED`**: The script reads `$_POST['item_name']`. If it equals `QuizKey`, it calls `gen_key()` to generate and store a new license key, then emails the key to `$_POST['payer_email']`.
+    - **`INVALID`**: The notification is flagged in the log for manual investigation. No key is issued.
+  </Step>
+  <Step title="Key Is Emailed to the Buyer">
+    The `mail()` function sends the key to the payer's email address with a message that includes the key value, the site URL (`http://performanceanxietyquestionnaire.com`), and the contact email (`heathernicolesoprano@gmail.com`).
+  </Step>
+</Steps>
+
+## Configuration Constants
+
+All deployment-specific settings in `purchaseSuccessful/authenticate_ipn.php` are controlled by three constants at the top of the file:
+
+```php
+// Set to 1 to enable logging to ipn.log, 0 to disable
+define("DEBUG", 0);
+
+// Set to 1 to use PayPal sandbox, 0 for live production
+define("USE_SANDBOX", 0);
+
+// Path to the IPN log file
+define("LOG_FILE", "./ipn.log");
+```
+
+<Warning>
+  Keep `DEBUG` set to `0` in production. When debug mode is enabled, the full HTTP request and response — including all transaction fields posted by PayPal — are written to `ipn.log`. This file can contain sensitive customer data such as payer email addresses and transaction IDs. Ensure the log file is not web-accessible even when debug mode is off, and rotate or delete it periodically.
+</Warning>
+
+## Key Generation
+
+When a `VERIFIED` IPN is received for a `QuizKey` item, the handler calls `gen_key()` from `purchaseSuccessful/keyGenerator.php`. The function:
+
+1. **Generates a 10-character alphanumeric key** using `keygen()`, which draws randomly from `a–z`, `A–Z`, and `0–9` using `mt_rand`.
+2. **MD5-hashes the key** with `hash("md5", $licKey)`.
+3. **Checks for collisions** by querying `SELECT * FROM License WHERE licenseKey = '...'`. If the hash already exists, a new key is generated and checked again until a unique hash is found.
+4. **Inserts the new key** into the `License` table with `active = 1`.
+5. **Pre-populates answer rows** for the new respondent: 14 blank `DemographicAnswer` rows (one per demographic question) and one `LikertAnswer` row per questionnaire item, with a default value of `6` (N/A), ready to be overwritten when the respondent takes the quiz.
+6. **Returns the unhashed key** (the human-readable string emailed to the buyer).
+
+<Note>
+  The buyer receives the original 10-character alphanumeric string, not the MD5 hash. The database stores only the hash. When the buyer enters their key on the site, the application hashes their input and looks it up in the `License` table.
+</Note>
+
+## Email Content
+
+The automated email sent to the buyer has the subject `Einerlei Publishing: License Key` and a plain-text body in this format:
+
+```
+  Thank you for purchasing a key.
+ Your key is <KEY>.
+ This key can be used at http://performanceanxietyquestionnaire.com
+
+ Contact information:
+ heathernicolesoprano@gmail.com
+```
+
+The key value, site URL, and contact address are all assembled in `authenticate_ipn.php`. Update these strings in the script if your deployment uses a different domain or contact address.
+
+## IPN Endpoint Configuration in PayPal
+
+Configure PayPal to send IPN notifications to your handler by following these steps in your PayPal account:
+
+<Steps>
+  <Step title="Log In to PayPal">
+    Go to [paypal.com](https://www.paypal.com) and log in to the merchant account associated with the hosted button.
+  </Step>
+  <Step title="Open IPN Settings">
+    Navigate to **Account Settings → Notifications → Instant Payment Notifications** and click **Update**.
+  </Step>
+  <Step title="Set the Notification URL">
+    Enter your full IPN handler URL, for example:
+
+    ```
+    https://yourdomain.com/purchaseSuccessful/authenticate_ipn.php
+    ```
+
+    Enable IPN and save.
+  </Step>
+  <Step title="Test With Sandbox">
+    Set `USE_SANDBOX = 1` and `DEBUG = 1` in `authenticate_ipn.php`. Use PayPal's IPN Simulator (available in the sandbox dashboard) to send a test notification and confirm that a key is generated and the log entry is written correctly.
+  </Step>
+  <Step title="Switch to Production">
+    Once testing is complete, set `USE_SANDBOX = 0` and `DEBUG = 0` in `authenticate_ipn.php`, and update the PayPal button on the homepage to use your production `hosted_button_id`.
+  </Step>
+</Steps>
+
+<Note>
+  PayPal requires IPN endpoints to be served over HTTPS. Ensure your server has a valid TLS certificate installed before going live. Without HTTPS, PayPal will not deliver IPN notifications to your handler, and no keys will be issued automatically.
+</Note>
+
+## Troubleshooting
+
+<CardGroup cols={2}>
+  <Card title="No IPN Received" icon="circle-xmark">
+    Confirm the notification URL is set correctly in PayPal account settings and that the endpoint is reachable over HTTPS. Check your web server error logs for PHP fatal errors in `authenticate_ipn.php`.
+  </Card>
+  <Card title="INVALID Response" icon="triangle-exclamation">
+    An `INVALID` response means the POST data did not match what PayPal sent. This can indicate a replay attack, a misconfigured proxy, or a character encoding issue. Enable `DEBUG = 1` temporarily to log the full request for inspection.
+  </Card>
+  <Card title="Key Not Emailed" icon="envelope">
+    Verify that PHP's `mail()` function is configured and working on your server. Many shared hosts require setting the `sendmail_from` directive in `php.ini` or using an SMTP relay. Test with `mail_test.php` in the project root.
+  </Card>
+  <Card title="cURL SSL Error" icon="lock">
+    If cURL cannot verify PayPal's SSL certificate, download a current `cacert.pem` from [curl.haxx.se/docs/caextract.html](https://curl.haxx.se/docs/caextract.html), place it on the server, and uncomment the `CURLOPT_CAINFO` lines near the bottom of the cURL configuration block in `authenticate_ipn.php`.
+  </Card>
+</CardGroup>

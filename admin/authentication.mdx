@@ -1,0 +1,169 @@
+---
+title: "Admin Authentication: Logging In and Managing Credentials"
+sidebarTitle: "Authentication"
+description: "Access the MPADQ admin dashboard by logging in at /admin/. Learn how credentials are stored, how to change your password, and how sessions work."
+---
+
+The MPADQ admin area uses a simple username/password login form backed by a MySQL `admins` table. Passwords are stored as MD5 hashes, sessions are tracked with PHP's native `$_SESSION`, and every protected page verifies the session on every request. This page explains the full authentication lifecycle — from the initial login through session management and credential updates.
+
+## Login Page
+
+The login form lives at `/admin/` (served by `admin/index.php`). It presents two fields — **username** (labelled "email" in the placeholder) and **password** — plus a **Login** button and a separate **Recover Password** link.
+
+Submitting the form POSTs credentials to `admin/dashboard/authenticate.php`.
+
+## How Authentication Works
+
+`authenticate.php` performs the following steps:
+
+1. Reads `$_POST["username"]` and `$_POST["password"]`.
+2. Hashes the submitted password with MD5: `hash("md5", $logPassword)`.
+3. Queries the `admins` table for the row matching the submitted username.
+4. Compares the stored MD5 hash to the computed hash.
+5. On match: starts a PHP session, sets `$_SESSION["loggedin"] = true`, and redirects to `/admin/dashboard/`.
+6. On mismatch: redirects back to `/admin/` with no error message (the form simply reloads).
+
+```php
+$hashedPwd = hash("md5", $logPassword);
+
+$query = "SELECT password FROM admins WHERE username='" . $logUsername . "';";
+$result = $mysqli->query($query);
+$row    = mysqli_fetch_array($result, MYSQLI_ASSOC);
+
+if ($row['password'] == $hashedPwd) {
+    session_start();
+    $_SESSION["loggedin"] = true;
+    header('Location: index.php');
+} else {
+    header('Location: ../');
+}
+```
+
+## Login Flow
+
+<Steps>
+  <Step title="Navigate to /admin/">
+    Open `/admin/` in your browser. The Admin Login form is displayed.
+  </Step>
+  <Step title="Enter credentials">
+    Type your username into the **email** field and your password into the
+    **password** field.
+  </Step>
+  <Step title="Submit the form">
+    Click **Login**. The form POSTs to `admin/dashboard/authenticate.php`.
+  </Step>
+  <Step title="Server validates credentials">
+    `authenticate.php` hashes the submitted password with MD5 and compares it
+    to the hash stored in the `admins` table. If the credentials are incorrect
+    you are redirected back to `/admin/` to try again.
+  </Step>
+  <Step title="Session is created">
+    On success, `$_SESSION["loggedin"]` is set to `true` and you are redirected
+    to `/admin/dashboard/`.
+  </Step>
+</Steps>
+
+## Credentials Storage
+
+Credentials are stored in the `admins` table of the `Quiz` MySQL database:
+
+```sql
+CREATE TABLE admins (
+    id       INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(255),
+    password VARCHAR(255)
+);
+```
+
+Passwords are stored as 32-character hexadecimal MD5 hash strings — never in plain text.
+
+### Default Credentials
+
+The SQL seed file inserts one default administrator record:
+
+```sql
+INSERT INTO admins VALUES (0, 'user1', '098f6bcd4621d373cade4e832627b4f6');
+```
+
+The hash `098f6bcd4621d373cade4e832627b4f6` is the MD5 digest of the string **`test`**.
+
+<Warning>
+  The default password is **`test`**. This is a well-known value and must be
+  changed immediately after deployment before the site is made publicly accessible.
+  Use the **Change Admin Password** page at `/admin/dashboard/change-password/`
+  to replace it with a strong, unique password the moment the application is
+  first set up.
+</Warning>
+
+<Note>
+  MD5 is a fast, cryptographically broken hashing algorithm that is no longer
+  considered secure for password storage. For production deployments, consider
+  migrating password storage to PHP's `password_hash()` / `password_verify()`
+  functions, which use bcrypt or Argon2 and are specifically designed for
+  credential hashing. If you upgrade the hashing algorithm, update both
+  `authenticate.php` and `authenticatePass.php` to use the new functions and
+  re-hash any existing stored passwords.
+</Note>
+
+## Session Verification
+
+Every page inside `/admin/dashboard/` starts with an identical session guard:
+
+```php
+session_start();
+if (!isset($_SESSION["loggedin"])) {
+    header('Location: ../'); // or the appropriate path back to /admin/
+}
+```
+
+If the session variable is absent — because the user never authenticated, the session timed out, or the session was explicitly destroyed — PHP redirects immediately to the login page. No dashboard HTML is ever sent to an unauthenticated request.
+
+## Logging Out
+
+Visiting `/admin/dashboard/logout.php` destroys the session completely:
+
+```php
+session_start();
+session_unset();
+session_destroy();
+header("Location: ../");
+```
+
+After logout, all subsequent requests to dashboard pages will trigger the session guard and redirect back to `/admin/`.
+
+## Changing the Admin Password
+
+Navigate to **Change Admin Password** at `/admin/dashboard/change-password/`.
+
+<Steps>
+  <Step title="Open the Change Password page">
+    From the dashboard, click **Change Admin Password**. The form asks for your
+    current password and the new password (entered twice for confirmation).
+  </Step>
+  <Step title="Fill in all three fields">
+    Enter your **current password**, your **new password**, and re-enter the
+    new password in the confirmation field.
+  </Step>
+  <Step title="Submit the form">
+    Click **Continue**. The form POSTs to
+    `admin/dashboard/change-password/changePassword/authenticatePass.php`.
+  </Step>
+  <Step title="Server validates the change">
+    The script checks that the two new-password fields match, that the new
+    password differs from the old password, and that the current password
+    hashes correctly against the database record. Validation failures redirect
+    you back to the form with an error message.
+  </Step>
+  <Step title="Password updated">
+    On success, the new password is stored as an MD5 hash via
+    `UPDATE admins SET password='&lt;hash&gt;' WHERE id=1` and you are
+    redirected to the confirmation page at
+    `/admin/dashboard/change-password/changePassword/`.
+  </Step>
+</Steps>
+
+## Updating the Admin Email
+
+Navigate to **Update Email** at `/admin/dashboard/update-email/`.
+
+Enter the new email address (formatted as `user@isp.com`) and click **Update Email**. The form POSTs to `/admin/dashboard/update-email/confirm/`. This is the address used for login recovery and system notifications.

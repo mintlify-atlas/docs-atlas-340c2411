@@ -1,0 +1,106 @@
+---
+title: "Exporting MPADQ Data for Research and Statistical Analysis"
+sidebarTitle: "Exporting Data"
+description: "Download raw answer data and computed scores as CSV files from the MPADQ admin dashboard for use in Excel, SPSS, R, or any statistical analysis tool."
+---
+
+The MPADQ admin dashboard makes it easy to export all collected questionnaire data as CSV files. Two export formats are available — raw answers and computed scores — suited to different research and analysis workflows. Both files are generated fresh on each page load and can be downloaded immediately. This page walks through the full export process, explains the data tables behind the exports, and covers archiving and privacy best practices.
+
+## Export Workflow
+
+<Steps>
+  <Step title="Log in to the admin dashboard">
+    Navigate to `/admin/` and sign in with your admin credentials. You will be redirected to `/admin/dashboard/` on successful login.
+  </Step>
+  <Step title="Open Review Answers">
+    Click **Review Answers** on the dashboard menu, or navigate directly to `/admin/dashboard/data-view/`. The page lists two available data views.
+  </Step>
+  <Step title="Choose your export format">
+    Select **View 1** for a wide-format CSV of raw answers (one row per respondent, one column per question), or **View 2** for a long-format CSV (one row per question-answer pair).
+  </Step>
+  <Step title="Download the file">
+    The server generates the CSV immediately when the page loads. Click the **"Click here to download the latest data in this view"** link to save the file to your computer.
+  </Step>
+  <Step title="Archive the file">
+    Rename or move the downloaded file before your next export. Both `View1.csv` and `View2.csv` are overwritten on every page load — older exports are not retained by the server automatically.
+  </Step>
+</Steps>
+
+<Warning>
+  **Data privacy:** Exported CSV files contain individual questionnaire responses. Handle exported data in accordance with your IRB approval, ethics agreement, or institutional data-handling policy. Do not store or share export files in unsecured locations.
+</Warning>
+
+## Available Export Formats
+
+| Format | URL | Best For |
+|--------|-----|----------|
+| **View 1 — Wide Format** | `/admin/dashboard/data-view/view-1/` | Statistical software expecting one row per participant (SPSS, R, Python pandas) |
+| **View 2 — Long Format** | `/admin/dashboard/data-view/view-2/` | Normalized workflows, pivot tables, tidy-data tools |
+
+See [Data Views](/admin/data-views) for a detailed description of each format's column structure and SQL generation logic.
+
+## Database Tables Behind the Exports
+
+Both views draw from the following MySQL tables in the `Quiz` database:
+
+<CardGroup cols={2}>
+  <Card title="DemographicAnswer" icon="table">
+    Each respondent's answers to the 15 demographic questions. Columns: `license_id`, `demographic_question_id`, `answer`.
+  </Card>
+  <Card title="LikertAnswer" icon="table">
+    Each respondent's numerical answers to the 157 Likert statements. Columns: `license_id`, `question_id`, `answer` (1–5 or 6 for N/A).
+  </Card>
+  <Card title="SubCategoryResult" icon="chart-bar">
+    Computed average scores for each of the 24 sub-categories per respondent. Columns: `license_id`, `sub_category_id`, `result`.
+  </Card>
+  <Card title="BroadCategoryResult" icon="chart-pie">
+    Computed broad-category scores (Symptomatology, Contributing Factors) per respondent. Columns: `license_id`, `broad_category_id`, `result`.
+  </Card>
+  <Card title="License" icon="key">
+    Maps `license_id` to `licenseKey` (MD5) and `active` flag. Only `active = false` records (completed quizzes) appear in the exports.
+  </Card>
+  <Card title="DemographicQuestion / LikertQuestion" icon="list">
+    Question text lookup tables, used to populate CSV column headers and question labels.
+  </Card>
+</CardGroup>
+
+## Key Archive
+
+Historically generated license key batches are stored as dated CSV files in the `admin/dashboard/keygen/keys/keyArchive/` directory on the server. These files are named by generation date (for example, `keys_04-11-2016.csv`) and contain the unhashed plain-text keys from each batch. Unlike the data views, key archive files are not overwritten — each batch creates a new dated file.
+
+<Tip>
+  Establish a regular export schedule and maintain an off-server archive of dated CSV snapshots. Because View1.csv and View2.csv are overwritten on every generation, you will lose previous exports if you do not save them locally.
+</Tip>
+
+## Using Exported Data
+
+The View 1 CSV can be loaded directly into most statistical software:
+
+```r R
+data <- read.csv("View1.csv", stringsAsFactors = FALSE)
+```
+
+```python Python
+import pandas as pd
+data = pd.read_csv("View1.csv")
+```
+
+```bash SPSS
+GET DATA /TYPE=TXT /FILE='View1.csv' /DELIMITERS=',' /QUALIFIER='"' /FIRSTCASE=2 /VARIABLES=...
+```
+
+The View 2 long-format CSV is best reshaped before analysis:
+
+```python Python
+import pandas as pd
+long = pd.read_csv("View2.csv")
+wide = long.pivot(index="User", columns="Question", values="Answer")
+```
+
+<Note>
+  Demographic answer values in the CSV may be prefixed with a single quote character (`'`) — a convention from the PHP CSV writer. Strip this character before numeric analysis if present.
+</Note>
+
+## Seeding Test Data
+
+The file `mysql/fake_quiz_data.php` can be run on the server to insert synthetic quiz responses into the database. This is useful for verifying that the data view exports work correctly before real respondent data is collected. Remove or restrict access to this file in a production environment.

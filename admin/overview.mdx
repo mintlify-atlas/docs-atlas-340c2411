@@ -1,0 +1,104 @@
+---
+title: "MPADQ Admin Dashboard Overview"
+sidebarTitle: "Overview"
+description: "The MPADQ admin dashboard provides tools for key management, question editing, data export, and site configuration. Learn what each section does."
+---
+
+The MPADQ admin dashboard is the central control panel for managing every operational aspect of the questionnaire — from issuing license keys to book purchasers, to editing quiz questions, reviewing collected response data, and maintaining account credentials. Access is restricted to authenticated administrators and every page inside the dashboard enforces a session check on every load.
+
+## Accessing the Dashboard
+
+The admin area is located at `/admin/`. Visiting that URL presents the **Admin Login** form where you enter your username and password. Upon successful authentication you are redirected to the dashboard home at `/admin/dashboard/`, which lists all available administrative functions.
+
+<Warning>
+  The `/admin/` path should never be publicly advertised or linked from the
+  respondent-facing quiz pages. Use server-level access controls (e.g., `.htaccess`
+  IP restrictions or HTTP Basic Auth as an outer layer) to add defence-in-depth
+  on top of the application login. Never share admin credentials over unencrypted
+  channels.
+</Warning>
+
+## Session-Based Authentication
+
+All dashboard pages begin with the following PHP session check:
+
+```php
+session_start();
+if (!isset($_SESSION["loggedin"])) {
+    header('Location: ../'); // redirect to /admin/
+}
+```
+
+If `$_SESSION['loggedin']` is not present — whether because the user never logged in or because their session has expired — PHP immediately redirects the request back to the login page. No dashboard content is ever rendered for unauthenticated visitors.
+
+## Dashboard Functions
+
+From the dashboard home (`/admin/dashboard/`) the following functions are available:
+
+<CardGroup cols={2}>
+  <Card
+    title="Generate Keys"
+    icon="key"
+    href="/admin/key-management"
+  >
+    Bulk-generate license keys for book purchasers. Enter a quantity (1–1000),
+    generate, and download the resulting CSV for distribution.
+  </Card>
+  <Card
+    title="Review Answers"
+    icon="table"
+    href="/admin/data-views"
+  >
+    Browse and export collected questionnaire responses. View demographic
+    answers alongside Likert-scale scores for every completed submission.
+  </Card>
+  <Card
+    title="Edit Questions"
+    icon="pencil"
+    href="/admin/editing-questions"
+  >
+    Update the wording of any Likert-scale or demographic question shown to
+    respondents without touching the database directly.
+  </Card>
+  <Card
+    title="Edit Understanding Your Scores Text"
+    icon="file-lines"
+    href="/admin/editing-score-text"
+  >
+    Modify the interpretive copy that respondents read after completing the
+    questionnaire and viewing their scored results.
+  </Card>
+  <Card
+    title="Change Admin Password"
+    icon="lock"
+    href="/admin/authentication"
+  >
+    Update the administrator password. Requires confirmation of the current
+    password followed by the new password entered twice.
+  </Card>
+  <Card
+    title="Update Email"
+    icon="envelope"
+    href="/admin/authentication"
+  >
+    Change the admin contact email address used for login recovery and
+    system notifications.
+  </Card>
+</CardGroup>
+
+Logout is available at `/admin/dashboard/logout.php`. Clicking it destroys the PHP session immediately and returns you to the login page.
+
+## Quick-Reference: Dashboard URLs
+
+| Function | URL |
+|---|---|
+| Login | `/admin/` |
+| Dashboard Home | `/admin/dashboard/` |
+| Generate Keys | `/admin/dashboard/keygen/` |
+| View Keys / Download | `/admin/dashboard/keygen/keys/` |
+| Review Answers | `/admin/dashboard/data-view/` |
+| Edit Questions | `/admin/dashboard/question-edit/` |
+| Edit Scores Text | `/admin/dashboard/understanding-your-scores-edit/` |
+| Change Password | `/admin/dashboard/change-password/` |
+| Update Email | `/admin/dashboard/update-email/` |
+| Logout | `/admin/dashboard/logout.php` |

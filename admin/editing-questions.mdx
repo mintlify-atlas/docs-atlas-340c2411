@@ -1,0 +1,130 @@
+---
+title: "Editing Demographic and Likert Scale Questions"
+sidebarTitle: "Edit Questions"
+description: "Update the wording of any demographic or Likert scale question through the admin dashboard without touching the database directly."
+---
+
+The MPADQ questionnaire is divided into two question types: a set of **demographic questions** that collect background information about the respondent, and a bank of **Likert scale questions** that measure attitudes and experiences related to music performance anxiety. Both sets of question text are stored in the database and can be updated at any time from the admin dashboard at `/admin/dashboard/question-edit/`.
+
+## Navigating to Edit Questions
+
+From the admin dashboard, click the **Edit Questions** link. The page presents two independent selection forms — one for demographic questions and one for Likert scale questions — each populated from the database at page load.
+
+<CardGroup cols={2}>
+  <Card title="Demographic Questions" icon="list-ol">
+    Fourteen background questions covering gender, age, instrument, performance history, health, and career goals. Stored in the `DemographicQuestion` table.
+  </Card>
+  <Card title="Likert Scale Questions" icon="sliders">
+    158 attitudinal statements answered on a scale. Stored in the `LikertQuestion` table, each linked to a broad category and one or two sub-categories.
+  </Card>
+</CardGroup>
+
+---
+
+## Editing a Demographic Question
+
+Demographic question text is stored in the `DemographicQuestion` table with the following schema:
+
+```sql
+CREATE TABLE DemographicQuestion (
+  id       INT UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
+  question VARCHAR(255) UNIQUE
+) ENGINE = INNODB;
+```
+
+The dropdown on the selection page is populated by the query:
+
+```sql
+SELECT id, question FROM DemographicQuestion;
+```
+
+<Steps>
+  <Step title="Select a question">
+    On the **Edit Demographic and Likert Questions** page (`/admin/dashboard/question-edit/`), locate the **Select Demographic Question** dropdown. All current question texts are listed. Choose the question you want to update and click **Edit**.
+  </Step>
+  <Step title="Review and edit the question text">
+    You are redirected to `/admin/dashboard/question-edit/dem-edit/`. The page fetches the current text for the selected question ID and pre-fills a `<textarea>`. Modify the wording as needed.
+  </Step>
+  <Step title="Submit your changes">
+    Click **Submit**. The form POSTs to `/admin/dashboard/question-edit/confirm/`, which runs the following sanitization pipeline before writing to the database:
+
+    - `real_escape_string()` — escapes special characters for the SQL query
+    - `stripslashes()` — removes any auto-added escape slashes
+    - `htmlentities()` — converts special characters to HTML entities
+    - `strip_tags()` — removes any HTML or PHP tags from the input
+
+    The resulting `UPDATE` statement is:
+
+    ```sql
+    UPDATE DemographicQuestion SET question = "<new text>" WHERE id = <selected id>;
+    ```
+  </Step>
+  <Step title="Confirm the save">
+    The confirm page (`/admin/dashboard/question-edit/confirm/`) displays a **Changes Saved** heading and echoes the updated question text. It also regenerates `demographics/demographicQuestions.json` by querying all questions in `question_order` and rewriting the file — so the live quiz reflects the new wording immediately without a separate export step.
+  </Step>
+</Steps>
+
+---
+
+## Editing a Likert Scale Question
+
+Likert question text is stored in the `LikertQuestion` table:
+
+```sql
+CREATE TABLE LikertQuestion (
+  question          VARCHAR(255) UNIQUE,
+  id                INT UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
+  broad_category_id INT UNSIGNED NOT NULL,
+  sub_category_id1  INT UNSIGNED NOT NULL,
+  sub_category_id2  INT UNSIGNED DEFAULT NULL,
+  score_inversely   BOOL NOT NULL
+) ENGINE = INNODB;
+```
+
+The dropdown is populated by:
+
+```sql
+SELECT id, question FROM LikertQuestion;
+```
+
+<Steps>
+  <Step title="Select a question">
+    On the same **Edit Demographic and Likert Questions** page, scroll to the **Select Likert Question** dropdown. Choose the statement you want to update and click **Edit**.
+  </Step>
+  <Step title="Review and edit the question text">
+    You are redirected to `/admin/dashboard/question-edit/likert-edit/`. The page fetches the current text from `LikertQuestion` for the selected ID and pre-fills the `<textarea>`. Edit the statement wording as needed.
+  </Step>
+  <Step title="Submit your changes">
+    Click **Submit**. The form POSTs to the shared confirm page at `/admin/dashboard/question-edit/confirm/` with a hidden field `tableName` set to `Likert`. The same four-step sanitization pipeline runs, then the update is applied:
+
+    ```sql
+    UPDATE LikertQuestion SET question = "<new text>" WHERE id = <selected id>;
+    ```
+  </Step>
+  <Step title="Confirm the save">
+    The confirm page displays **Changes Saved** and echoes the updated statement. Use the **Select Another Question** link to make additional edits, or return to the **Dashboard**.
+  </Step>
+</Steps>
+
+<Warning>
+  **Changing question text affects all historical response records.** The `DemographicAnswer` and `LikertAnswer` tables store responses by foreign key reference to the question `id` — not by question text. This means existing answer rows remain numerically linked to the question even after a text change. However, any reports, exports, or visualizations that display question text alongside responses will show the *new* wording against *old* answers. Edits should be limited to minor phrasing corrections, typo fixes, or clarifications that do not alter the intended meaning of the question.
+</Warning>
+
+---
+
+## Bulk Configuration via Text Files
+
+In addition to the dashboard editor, question text can be managed in bulk through plain-text configuration files in the `config/` directory of the application.
+
+<CardGroup cols={2}>
+  <Card title="config/demographicQuestions.txt" icon="file-lines">
+    Lists all 14 demographic questions by number. Each entry is a sequential integer on one line followed by the quoted question string on the next.
+  </Card>
+  <Card title="config/likertScaleQuestions.txt" icon="file-lines">
+    Lists all 158 Likert statements in the same numbered format. This is the canonical reference for the full question bank.
+  </Card>
+</CardGroup>
+
+<Info>
+  Two C++ utilities — `createDemographicsJSONfile.cc` and `createLikertJSONfile.cc` — can read these text files and regenerate the corresponding JSON files used by the quiz front end. If you update questions directly in the text files rather than through the dashboard, run the appropriate utility afterward to keep the JSON files in sync. The dashboard confirm page regenerates `demographicQuestions.json` automatically, but changes made exclusively via the text file require a manual utility run.
+</Info>

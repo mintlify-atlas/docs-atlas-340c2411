@@ -1,0 +1,145 @@
+---
+title: "Generating and Managing License Keys"
+sidebarTitle: "Key Management"
+description: "Generate bulk license keys for book purchasers, view all active and used keys, and download key batches as CSV files for distribution."
+---
+
+Every respondent who takes the MPADQ must enter a valid license key before they can begin the questionnaire. Keys are 10-character alphanumeric codes that are generated in bulk by the admin and distributed to book purchasers. Each key is single-use: once a respondent completes the quiz, the key is marked inactive and the results become permanently viewable. This page covers how to generate keys, where they are stored, and how to download them for distribution.
+
+## Navigating to Key Generation
+
+From the dashboard home at `/admin/dashboard/`, click **Generate Keys**. This takes you to `/admin/dashboard/keygen/`.
+
+## Generating Keys
+
+<Steps>
+  <Step title="Open the Generate Keys page">
+    Navigate to `/admin/dashboard/keygen/`. You will see a number input field
+    labelled **Number of Keys to generate** and a **Generate** button.
+  </Step>
+  <Step title="Enter a quantity">
+    Type a number between **1** and **1000** into the input field. This is the
+    number of unique license keys that will be created in this batch.
+  </Step>
+  <Step title="Click Generate">
+    Click the **Generate** button. The form POSTs the quantity to
+    `keyGenerator.php`.
+  </Step>
+  <Step title="Keys are generated and stored">
+    `keyGenerator.php` runs a loop `$count` times. For each iteration it calls
+    `keygen()` to produce a plain-text key, hashes it with MD5, checks the
+    `License` table for a collision, and inserts the hashed key with
+    `active = 1`. The plain-text key is accumulated for display.
+  </Step>
+  <Step title="View and download the batch">
+    After all keys are inserted, the plain-text keys are stored in
+    `$_SESSION['keyOutput']` and `$_SESSION['keyFile']`, then you are
+    redirected to `/admin/dashboard/keygen/keys/` where the batch is displayed
+    and available for download.
+  </Step>
+</Steps>
+
+<Tip>
+  Generate keys in batches that match your print runs. For example, if a print
+  run produces 500 books, generate exactly 500 keys at once so each batch maps
+  cleanly to a physical edition and its archive CSV is clearly dated. This makes
+  it straightforward to audit which keys correspond to which print run.
+</Tip>
+
+## Key Generation Algorithm
+
+Keys are produced by the `keygen()` function defined in `keyGenerator.php`:
+
+```php
+function keygen() {
+    $key    = '';
+    $length = 10;
+
+    $inputs = array_merge(range("a", "z"), range(0, 9), range("A", "Z"));
+
+    for ($i = 0; $i < $length; $i++) {
+        $key .= $inputs{ mt_rand(0, 61) };
+    }
+
+    return $key;
+}
+```
+
+- **Length:** 10 characters.
+- **Character set:** lowercase letters `a–z` (26), digits `0–9` (10), uppercase letters `A–Z` (26) — **62 characters** total.
+- **Randomness:** each character position is chosen independently with `mt_rand(0, 61)`.
+- **Uniqueness check:** after generation, the MD5 hash of the key is checked against the `License` table. If a collision is found the loop regenerates until a unique hash is obtained.
+- **Storage:** only the **MD5 hash** of the key is written to the database. The plain-text key is shown to the admin once and stored in the session for download; it is never persisted in plain text.
+
+## License Table Schema
+
+Keys are stored in the `License` table of the `Quiz` database:
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | INT, AUTO_INCREMENT, PRIMARY KEY | Unique row identifier assigned by MySQL. |
+| `licenseKey` | VARCHAR(255) | MD5 hash of the plain-text license key. |
+| `active` | TINYINT(1) / BOOL | `1` = key is unused and valid; `0` = key has been used and the quiz is complete. |
+
+### Key Lifecycle
+
+A key begins its life as **active** (`active = 1`) the moment it is inserted. When a respondent successfully completes the questionnaire and submits their answers, the application sets `active = 0` for that key. From that point on:
+
+- The key cannot be used to start a new quiz session.
+- The respondent can return to view their results using the same key.
+
+## Viewing and Downloading a Key Batch
+
+After generation you land on `/admin/dashboard/keygen/keys/`. This page:
+
+- Displays the plain-text keys in a read-only `<textarea>` — one key per line.
+- Provides a **DOWNLOAD** button that POSTs to `downloadKeys.php`.
+
+`downloadKeys.php` performs the following:
+
+1. Retrieves the key list from `$_SESSION['keyFile']`.
+2. Builds a filename in the format `keys_MM-DD-YYYY.csv` using today's date.
+3. Writes the keys to `keygen/keys/keyArchive/keys_MM-DD-YYYY.csv` on the server.
+4. Sends the file to the browser as an `application/octet-stream` download attachment.
+
+```php
+$today    = date("m-d-Y");
+$fileName = "./keyArchive/keys_" . $today . ".csv";
+
+file_put_contents($fileName, $keyOutput, FILE_APPEND);
+
+header('Content-Disposition: attachment; filename="' . basename($fileName) . '"');
+readfile($fileName);
+```
+
+<Info>
+  The download is triggered from session data that is set during the current
+  generation run. If you navigate away from the keys page before downloading,
+  the session data may be lost. Always download immediately after generating, or
+  retrieve the archived CSV from the `keyArchive/` directory on the server.
+</Info>
+
+## Key Archive
+
+Every time a batch is downloaded, a dated CSV file is saved to:
+
+```
+admin/dashboard/keygen/keys/keyArchive/keys_MM-DD-YYYY.csv
+```
+
+Example archive files from past runs:
+
+```
+keyArchive/keys_04-11-2016.csv
+keyArchive/keys_04-24-2016.csv
+keyArchive/keys_05-01-2016.csv
+keyArchive/keys_05-02-2016.csv
+keyArchive/keys_05-03-2016.csv
+keyArchive/keys_05-06-2016.csv
+```
+
+Each CSV contains the plain-text keys from that batch, one per line. These files serve as the permanent record of which keys were issued on a given date and can be used to re-send keys if a distribution email is lost.
+
+## Automatic Key Generation via PayPal IPN
+
+In addition to manual bulk generation, the application also generates a single key automatically when a verified PayPal Instant Payment Notification (IPN) is received. The `authenticate_ipn.php` script calls the same `keygen()` function and inserts the resulting hashed key into the `License` table, then redirects the purchaser to `/purchaseSuccessful` where they can see their plain-text key. This path is fully automated and requires no admin interaction.

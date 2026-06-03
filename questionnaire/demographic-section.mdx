@@ -1,0 +1,233 @@
+---
+title: "Demographic Section: Background Questions Explained"
+sidebarTitle: "Demographics"
+description: "The MPADQ's 15 demographic questions capture your musical background, career stage, and health factors. Learn what each question asks and why."
+---
+
+The demographic section is the first thing you encounter after logging in with your access key. Before the questionnaire can assess your performance anxiety, it needs to understand who you are as a musician — your training history, your current role, and any health or lifestyle factors that could influence your results. These 15 questions establish that context and ensure your scores are interpreted correctly against your specific background.
+
+## Purpose
+
+The 15 demographic questions do not produce a scored result on their own. Instead, they supply the research framework that makes your Likert responses meaningful. Knowing, for example, whether you are a high school student or a twenty-year professional helps researchers understand *why* certain anxiety patterns appear, not just *that* they appear.
+
+<Note>
+  Your individual demographic responses are kept confidential. They contribute only to aggregate, anonymized research — no one reading the research data can link an answer back to a specific person or license key.
+</Note>
+
+## How Answers Are Saved
+
+When you click **Next** at the bottom of the demographic form, the page calls `questionSubmit.php` asynchronously via a jQuery `$.post` request. Each question label and your selected answer are paired and sent together. The server looks up the matching `DemographicQuestion` record by question text and writes your answer into the `DemographicAnswer` table under your `license_id`. You are then automatically redirected to the Likert section — no manual navigation required.
+
+```text
+DemographicAnswer
+├── license_id               (FK → License.id)
+├── demographic_question_id  (FK → DemographicQuestion.id)
+└── answer                   VARCHAR(255)
+```
+
+## The 15 Questions
+
+The questions below are listed in the order they appear on screen, along with their input type and the available options exactly as coded.
+
+<Steps>
+  <Step title="Gender">
+    **Input type:** Radio buttons
+
+    | Option |
+    |--------|
+    | Male   |
+    | Female |
+  </Step>
+
+  <Step title="Age">
+    **Input type:** Select dropdown
+
+    | Option      |
+    |-------------|
+    | 17 and under |
+    | 18–23        |
+    | 24–30        |
+    | 31–40        |
+    | 41–50        |
+    | 51–60        |
+    | 61–70        |
+    | Over 70      |
+  </Step>
+
+  <Step title="Number of years studying primary voice/instrument">
+    **Input type:** Select dropdown
+
+    | Option   |
+    |----------|
+    | 0–2      |
+    | 3–5      |
+    | 6–10     |
+    | 11–15    |
+    | 16–20    |
+    | 21–25    |
+    | Over 25  |
+  </Step>
+
+  <Step title="Age when starting musical instruction of any kind">
+    **Input type:** Select dropdown
+
+    | Option  |
+    |---------|
+    | 0–3     |
+    | 4–5     |
+    | 6–7     |
+    | 8–9     |
+    | 10–11   |
+    | 12–13   |
+    | 14–15   |
+    | 16–17   |
+    | 18–19   |
+    | Over 20 |
+  </Step>
+
+  <Step title="Age when starting musical study of primary instrument">
+    **Input type:** Select dropdown — same options as Question 4.
+
+    This question is distinct from Question 4: it asks specifically about your *primary* instrument, which may be different from the first music instruction you ever received (e.g., general music class vs. beginning private lessons on your main instrument).
+  </Step>
+
+  <Step title="Are you currently (select one)">
+    **Input type:** Select dropdown with 11 options. Selecting **Other** reveals a free-text field labelled "Please Specify."
+
+    | Option |
+    |--------|
+    | High school student uncertain of future role of music in life |
+    | High school student looking toward career as a musician |
+    | Undergraduate music minor |
+    | Undergraduate music major |
+    | Masters music student |
+    | Doctoral music student |
+    | Amateur adult musician |
+    | Part-time professional musician |
+    | Full-time professional musician in early career stage |
+    | Full-time professional musician for at least ten years |
+    | Other *(free-text field appears)* |
+  </Step>
+
+  <Step title="Primary voice type or instrument">
+    **Input type:** Select dropdown
+
+    | Option     |
+    |------------|
+    | Woodwind   |
+    | Brass      |
+    | Strings    |
+    | Percussion |
+    | Keyboard   |
+    | Vocalist   |
+    | Conductor  |
+  </Step>
+
+  <Step title="Specific instrument or voice type">
+    **Input type:** Free-text field
+
+    Enter the exact name of your instrument or voice type (e.g., *clarinet*, *mezzo-soprano*, *snare drum*). This complements Question 7's broad category with precision.
+  </Step>
+
+  <Step title="Number of professional performances given (approximate)">
+    **Input type:** Select dropdown
+
+    | Option  |
+    |---------|
+    | 0–5     |
+    | 6–10    |
+    | 11–15   |
+    | 16–20   |
+    | 21–25   |
+    | 26–30   |
+    | 31–35   |
+    | 36–40   |
+    | 41–45   |
+    | 46–50   |
+    | Over 50 |
+  </Step>
+
+  <Step title="Number of total performances given (approximate)">
+    **Input type:** Select dropdown — includes performances at every level, not just professional engagements.
+
+    | Option   |
+    |----------|
+    | 0–5      |
+    | 6–10     |
+    | 11–20    |
+    | 21–30    |
+    | 31–40    |
+    | 41–50    |
+    | 51–60    |
+    | 61–70    |
+    | 71–80    |
+    | 81–90    |
+    | 91–100   |
+    | Over 100 |
+  </Step>
+
+  <Step title="Do you have medical conditions impacting your ability to sing/play?">
+    **Input type:** Radio buttons (Yes / No). Selecting **Yes** reveals a free-text field for the specific condition (e.g., long-term injury, asthma, TMJD).
+
+    | Option |
+    |--------|
+    | Yes *(free-text field for condition appears)* |
+    | No     |
+  </Step>
+
+  <Step title="Number of alcoholic drinks per month">
+    **Input type:** Select dropdown
+
+    | Option  |
+    |---------|
+    | 0       |
+    | 1–5     |
+    | 6–10    |
+    | 11–20   |
+    | 21–30   |
+    | 31–40   |
+    | 41–50   |
+    | Over 50 |
+  </Step>
+
+  <Step title="Use of any recreational drugs">
+    **Input type:** Radio buttons
+
+    | Option |
+    |--------|
+    | Yes    |
+    | No     |
+  </Step>
+
+  <Step title="Do you take any blood pressure or anxiety medication(s)?">
+    **Input type:** Radio buttons
+
+    | Option |
+    |--------|
+    | Yes    |
+    | No     |
+  </Step>
+
+  <Step title="Professional plan / career goals">
+    **Input type:** Textarea (free-form, multi-line)
+
+    Describe your musical goals and professional plans in your own words. This open-ended response gives researchers qualitative context that the other questions cannot capture.
+  </Step>
+</Steps>
+
+## Conditional Fields
+
+Two questions reveal hidden sub-fields based on your selection:
+
+<CardGroup cols={2}>
+  <Card title="Question 6 — Current Role" icon="user">
+    Choosing **Other** from the dropdown reveals a "Please Specify" text input. The custom text is appended to the stored answer value so the full detail is preserved.
+  </Card>
+  <Card title="Question 11 — Medical Conditions" icon="heart-pulse">
+    Answering **Yes** reveals a "Specific medical condition" text input. Your condition description is combined with the "Yes" answer before being stored.
+  </Card>
+</CardGroup>
+
+## What Happens Next
+
+After the form is submitted, your browser is automatically directed to `/likert/`, where the main 157-question Likert scale section begins. The demographic answers are already saved at that point — you do not need to go back or resubmit anything.

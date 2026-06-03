@@ -1,0 +1,160 @@
+---
+title: "Likert Scale Section: 157 Questions Across 24 Categories"
+sidebarTitle: "Likert Scale"
+description: "The Likert section is the core of the MPADQ — 157 statements rated Strongly Disagree to Strongly Agree, organized across 24 sub-categories of performance anxiety."
+---
+
+The Likert scale section is the heart of the MPADQ. Rather than asking open-ended questions, it presents you with 157 declarative statements about your musical life, emotional patterns, relationships, and physical experiences. For each statement you choose from a six-point scale — from **Strongly Disagree** to **Strongly Agree**, plus a **N/A** option. When you finish, the system uses your 157 responses to compute scores across two broad categories and 24 sub-categories of music performance anxiety.
+
+## What Is a Likert Scale?
+
+A Likert scale measures attitudes and perceptions by asking respondents to rate their agreement with a prepared statement rather than answering in free text. The numbered options are mapped to a consistent scoring range, which makes it possible to average responses across many questions and compare results between respondents. The MPADQ uses a 1–5 agreement scale plus a dedicated N/A option (value 6) for statements that do not apply to your situation.
+
+## Answer Scale
+
+Every question offers exactly six choices:
+
+| Value | Label             |
+|-------|-------------------|
+| 1     | Strongly Disagree |
+| 2     | Disagree          |
+| 3     | Neutral           |
+| 4     | Agree             |
+| 5     | Strongly Agree    |
+| 6     | N/A               |
+
+<Tip>
+  Answer every question as honestly as you can, even statements that seem unrelated to music or performance. Questions about relationships, sleep, spirituality, and general outlook are deliberate — they probe the *contributing factors* that research has linked to performance anxiety. Skewing those answers will reduce the accuracy of your scores.
+</Tip>
+
+## Page Layout and Navigation
+
+The 157 questions are presented **10 per page**, producing 15 full pages followed by a final page containing the remaining 7 questions (16 pages total). Each page works as follows:
+
+<Steps>
+  <Step title="Read each statement">
+    Each statement is displayed with its six radio-button options labelled Strongly Disagree through Strongly Agree and N/A.
+  </Step>
+  <Step title="Select your answer">
+    Click one radio button per statement. All 10 statements on the page must be answered before you can advance — the browser enforces the `required` attribute on every input.
+  </Step>
+  <Step title="Click Next (or Submit on the last page)">
+    Pages 1–15 show a **Next** button. The final page shows a **Submit** button. Clicking either triggers the async save described below, then either loads the next page or redirects you to `/finish/`.
+  </Step>
+  <Step title="Progress bar">
+    A `<progress>` bar at the bottom of every page shows your position as *current page / total pages* (e.g., `3/16`). The page scrolls back to the top automatically when new questions load.
+  </Step>
+</Steps>
+
+<Info>
+  Answers are saved **asynchronously** via a jQuery `$.post` request to `questionSubmit.php` the moment you click Next or Submit. Your answers for completed pages are permanently stored before the next page appears — if your browser crashes or you close the tab mid-quiz, any pages you already advanced past are safely recorded in the database.
+</Info>
+
+## Scoring Notes
+
+### Inverse-Scored Questions
+
+Some questions are flagged `score_inversely = true` in the database. For these questions the numeric value you choose is flipped before storage so that the direction of all scores is consistent across a sub-category. For example, a statement like *"I am a confident performer"* is scored normally (Agree = higher score), while *"I am easily distractible"* is scored inversely (Agree = lower score). You do not need to do anything differently — the server handles the conversion automatically.
+
+### Dual Sub-Category Membership
+
+Some questions belong to two sub-categories simultaneously (`sub_category_id1` and `sub_category_id2` in the `LikertQuestion` table). A single response to such a question contributes to the averages of both sub-categories independently.
+
+### The N/A Rule
+
+Answering N/A (value 6) on a question excludes that question from the sub-category average. However, if **more than the minimum required number** of questions in a sub-category are answered N/A, the entire sub-category is marked N/A and excluded from the broad category average. The threshold depends on sub-category size: sub-categories with only 2 questions require at least 1 non-N/A answer; all others require at least 2.
+
+## Data Storage
+
+Answers are stored in the `LikertAnswer` table. The raw 1–5 answer is converted to a 0–100 percentage scale before being written:
+
+```text
+LikertAnswer
+├── license_id   (FK → License.id)
+├── question_id  (FK → LikertQuestion.id)
+└── answer       TINYINT UNSIGNED  (0 | 25 | 50 | 75 | 100 | 6 for N/A)
+```
+
+The conversion applied by `questionSubmit.php`:
+
+| Selected value | Stored value (normal) | Stored value (inverse) |
+|---------------|----------------------|------------------------|
+| 1 — Strongly Disagree | 0   | 100 |
+| 2 — Disagree          | 25  | 75  |
+| 3 — Neutral           | 50  | 50  |
+| 4 — Agree             | 75  | 25  |
+| 5 — Strongly Agree    | 100 | 0   |
+| 6 — N/A               | 6   | 6   |
+
+## The 24 Sub-Categories
+
+Questions are organized into **2 broad categories** containing **24 sub-categories** in total.
+
+<Accordion title="Symptomatology (sub-categories 1–3)">
+  The Symptomatology broad category captures the direct, observable manifestations of performance anxiety — the symptoms you experience before and during a performance.
+
+  | # | Sub-Category |
+  |---|--------------|
+  | 1 | Physical Symptoms |
+  | 2 | Cognitive Symptoms |
+  | 3 | Behavioral Symptoms |
+</Accordion>
+
+<Accordion title="Contributing Factors (sub-categories 4–24)">
+  The Contributing Factors broad category covers the underlying personal, relational, and psychological dimensions that research has linked to the development and severity of performance anxiety.
+
+  | # | Sub-Category |
+  |---|--------------|
+  | 4  | Student-Teacher Relationship |
+  | 5  | Sense of Belonging at School/Career |
+  | 6  | Generalized Anxiety and Stress |
+  | 7  | Perfectionism and Self-Criticism |
+  | 8  | Self-Concept of Performance Ability and Confidence |
+  | 9  | Self-Esteem |
+  | 10 | Self-Concept of Long-Term Stakes |
+  | 11 | Personal Support Structure in People and Activities |
+  | 12 | Security, Happiness and Support in Romantic Relationships |
+  | 13 | Physical and Emotional Health |
+  | 14 | Spiritual and/or Religious Support System and/or Beliefs |
+  | 15 | Feelings of Being Out-of-Control |
+  | 16 | Controlling Personality and Competitiveness |
+  | 17 | Self-Concept of Anxiety |
+  | 18 | Self-Concept of Focus |
+  | 19 | Self-Concept of Musical and/or Performance Preparation |
+  | 20 | Conflict Resolution Inclination |
+  | 21 | Introversion |
+  | 22 | General Negativity |
+  | 23 | Personal Drive/Motivation |
+  | 24 | The Audition Factor |
+</Accordion>
+
+## Sample Questions by Category
+
+The following examples are drawn directly from `likertScaleQuestions.txt` to illustrate the range and tone of questions you will encounter:
+
+<CardGroup cols={2}>
+  <Card title="Physical Symptoms" icon="heart-pulse">
+    *"My heart races when I perform."*  
+    *"I sweat because of anxiety when I perform."*  
+    *"My throat gets dry because of anxiety during performances."*
+  </Card>
+  <Card title="Cognitive Symptoms" icon="brain">
+    *"I imagine the worst when anticipating a performance."*  
+    *"I have trouble staying focused when anticipating a performance."*  
+    *"I am more critical of myself than usual when a performance is imminent."*
+  </Card>
+  <Card title="Behavioral Symptoms" icon="person-running">
+    *"Anxiety affects the amount of practicing I do."*  
+    *"I often want to cancel or reschedule my performances because of anxiety."*  
+    *"My relationships are affected by my anxiety."*
+  </Card>
+  <Card title="Contributing Factors (sample)" icon="puzzle-piece">
+    *"I consider myself to be a perfectionist."*  
+    *"I believe that a higher power is looking out for me."*  
+    *"I am a confident performer."*
+  </Card>
+</CardGroup>
+
+## What Happens After You Submit
+
+Clicking **Submit** on the final page sends the last batch of answers to `questionSubmit.php` and then redirects your browser to `/finish/`, where your scores are computed and displayed immediately.

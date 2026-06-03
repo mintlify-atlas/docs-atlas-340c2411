@@ -1,0 +1,137 @@
+---
+title: "Admin Data Views: Reviewing Questionnaire Responses"
+sidebarTitle: "Data Views"
+description: "The MPADQ provides two data views in the admin dashboard — raw answer exports and scored results — for research and reporting purposes."
+---
+
+The MPADQ admin dashboard includes a dedicated **Review Answers** section that gives administrators on-demand access to all completed questionnaire responses. Two distinct data views are available, each presenting the data in a different format suited for different research and reporting needs. Both views write a fresh CSV file to the server each time the page is loaded and provide an immediate download link.
+
+## Navigating to Review Answers
+
+After logging in, access the data views from the admin dashboard at `/admin/dashboard/`. Click **Review Answers** (or navigate directly to `/admin/dashboard/data-view/`) to reach the data view index, which lists links to View 1 and View 2.
+
+<Note>
+  Both `View1.csv` and `View2.csv` are **overwritten** each time their respective pages are loaded. If you need to preserve a snapshot of the data, download and rename or archive the file before the next page visit.
+</Note>
+
+---
+
+## View 1 — Raw Answers (Wide Format)
+
+**URL:** `/admin/dashboard/data-view/view-1/`
+
+View 1 generates a **wide-format** CSV in which each row represents one completed quiz submission identified by its `license_id`, and each column represents a single question. The header row lists the question texts; each data row fills in the respondent's raw answer for every question.
+
+### What the file contains
+
+| Position | Content |
+|---|---|
+| Column 1 | `User` — the respondent's `license_id` |
+| Columns 2–N | All **demographic** question texts (e.g., *Age:*, *Gender:*, *Primary voice type or instrument:*) |
+| Columns N+1–end | All **Likert** question texts (e.g., *I tend to have anxiety about performances.*, *I am a confident performer.*) |
+
+- Only users where `active = false` in the `License` table are included — meaning only respondents who have fully completed the questionnaire.
+- Demographic answers are prefixed with a single quote (`'`) in the raw CSV (a convention carried over from the server-side PHP writer).
+- Commas inside question text are replaced with spaces to preserve CSV integrity.
+
+### How it is generated
+
+When you load the page, the server:
+
+1. Opens (or creates) `View1.csv` in write mode in the `view-1/` directory.
+2. Queries `DemographicQuestion` and `LikertQuestion` to build the header row.
+3. Queries `License` for all rows where `active = false`, then for each `license_id` fetches answers from `DemographicAnswer` and `LikertAnswer`.
+4. Writes all rows to the file, then renders a download link on the page.
+
+### Downloading
+
+Once the page loads and the file is written, a link reading **"Click here to download the latest data in this view"** appears. Click it to save `View1.csv` to your computer.
+
+---
+
+## View 2 — Long-Format Answers
+
+**URL:** `/admin/dashboard/data-view/view-2/`
+
+View 2 generates a **long-format** CSV with three fixed columns: `User`, `Question`, and `Answer`. Rather than spreading all questions across columns, each question-answer pair for a respondent occupies its own row. This format is particularly convenient for pivot-table workflows or analysis tools that prefer a normalized row structure.
+
+### What the file contains
+
+| Column | Content |
+|---|---|
+| `User` | The respondent's `license_id` |
+| `Question` | The full text of the question |
+| `Answer` | The respondent's raw answer for that question |
+
+For each completed respondent, View 2 first writes all demographic question-answer pairs and then all Likert question-answer pairs. As in View 1, only users where `active = false` are included, and commas within question text are replaced with spaces.
+
+### How it is generated
+
+When you load the page, the server:
+
+1. Opens (or creates) `View2.csv` in write mode.
+2. Writes the header row: `User, Question, Answer`.
+3. For each completed `license_id`, runs a JOIN query against `DemographicQuestion`/`DemographicAnswer` and a second JOIN query against `LikertQuestion`/`LikertAnswer`.
+4. Writes all resulting rows, then renders a download link.
+
+### Downloading
+
+A link reading **"Click here to download the latest data in this view"** appears after the file is written. Click it to save `View2.csv` to your computer.
+
+---
+
+## Choosing Between View 1 and View 2
+
+<Tabs>
+  <Tab title="View 1 — Wide Format">
+    **Best for:**
+    - Statistical software that expects one row per participant (SPSS, R `data.frame`, Excel pivot tables)
+    - Direct comparison of a single question across all respondents
+    - Machine learning or regression analysis where each observation is a row
+
+    **Characteristics:**
+    - One row per completed respondent
+    - Hundreds of columns (one per question)
+    - Suitable for `read.csv()` in R or `pd.read_csv()` in Python without reshaping
+  </Tab>
+  <Tab title="View 2 — Long Format">
+    **Best for:**
+    - Workflows that prefer a normalized, tidy data structure
+    - Filtering or grouping data by specific question text
+    - Tools like `dplyr` in R or pandas `melt` operations
+
+    **Characteristics:**
+    - Many rows per respondent (one per question answered)
+    - Three columns only: `User`, `Question`, `Answer`
+    - Requires a pivot/reshape step before wide-format analysis
+  </Tab>
+</Tabs>
+
+---
+
+## Database Tables Behind the Views
+
+Both views draw from the same underlying MySQL tables in the `Quiz` database:
+
+<CardGroup cols={2}>
+  <Card title="DemographicAnswer" icon="table">
+    Stores each respondent's answers to demographic questions.
+    Columns: `license_id`, `demographic_question_id`, `answer`
+  </Card>
+  <Card title="LikertAnswer" icon="table">
+    Stores each respondent's numerical answers to Likert-scale statements.
+    Columns: `license_id`, `question_id`, `answer`
+  </Card>
+  <Card title="DemographicQuestion" icon="list">
+    Question text and IDs for all demographic items (joined in Views 1 and 2 for headers and labels).
+  </Card>
+  <Card title="LikertQuestion" icon="list">
+    Question text and IDs for all Likert-scale statements.
+  </Card>
+  <Card title="License" icon="key">
+    Maps `license_id` to `licenseKey` and `active` status. Only records with `active = false` (completed quizzes) appear in the exports.
+  </Card>
+  <Card title="SubCategoryResult / BroadCategoryResult" icon="chart-bar">
+    Store computed sub-category and broad-category scores per respondent. These tables exist in the schema and are available for future reporting views.
+  </Card>
+</CardGroup>

@@ -1,0 +1,124 @@
+---
+title: "MPADQ Server Requirements and Stack Overview"
+sidebarTitle: "Requirements"
+description: "Set up a server to run the MPADQ. Learn the required PHP version, MySQL configuration, and web server setup needed before deployment."
+---
+
+The MPADQ is a server-rendered PHP web application backed by a MySQL database. Before uploading any application files, make sure your hosting environment satisfies every item below. A standard LAMP or LEMP stack — Linux, Apache or Nginx, MySQL, and PHP — covers the full list of requirements.
+
+## Technology Stack
+
+<CardGroup cols={2}>
+  <Card title="PHP (Server-Side)" icon="php">
+    All page logic, session management, and database interaction is handled in PHP. The MySQLi extension and native session support must both be enabled. The `mail()` function is used for license key delivery emails, and `curl` is required for PayPal IPN validation.
+  </Card>
+  <Card title="MySQL (Database)" icon="database">
+    All tables use the InnoDB storage engine for foreign-key enforcement. The application expects a database named `Quiz`. See [Database Setup](/deployment/database-setup) for the full schema.
+  </Card>
+  <Card title="Frontend" icon="browser">
+    Pages are rendered as HTML5 with CSS3 styling. jQuery 1.12.2 is bundled at `src/jquery-1.12.2.min.js` — no CDN dependency is required.
+  </Card>
+  <Card title="Web Server" icon="server">
+    Apache or Nginx with PHP support. A standard LAMP or LEMP stack is the recommended setup. No special modules beyond standard PHP support are required.
+  </Card>
+</CardGroup>
+
+## Required PHP Extensions
+
+The following PHP extensions must be enabled before deploying the application:
+
+| Extension | Purpose |
+|-----------|---------|
+| `mysqli` | Database connections throughout the application |
+| Sessions (`session_start`) | User authentication and quiz state across pages |
+| `mail()` | Sending license key delivery emails to purchasers |
+| `curl` | Posting back to PayPal for IPN validation |
+
+<Tip>
+  On most cPanel-based shared hosts, `mysqli` and `curl` can be enabled in the **PHP Extensions** panel without editing `php.ini` directly. Confirm all four are active before running the database setup scripts.
+</Tip>
+
+## Session Timeout
+
+The application enforces a server-side session timeout controlled by a single variable in `src/timeout.php`:
+
+```php
+<?php
+$timeout = 1800;
+?>
+```
+
+The default value of `1800` seconds (30 minutes) is applied across every page that requires an authenticated session. Adjust this value before going live if your deployment requires a shorter or longer idle timeout.
+
+## File System Write Permissions
+
+The PHP process must have write access to the following paths. Most are used for debug logging or CSV data exports; without write permission the relevant features will silently fail or produce errors.
+
+| Path | Purpose |
+|------|---------|
+| `admin/dashboard/data-view/view-1/View1.csv` | CSV export — respondent data view 1 |
+| `admin/dashboard/data-view/view-2/View2.csv` | CSV export — respondent data view 2 |
+| `demographics/output.mysql` | Debug log for demographic submissions |
+| `likert/output.mysql` | Debug log for Likert answer submissions |
+| `finish/debug.txt` | Debug log for score calculation |
+| `purchaseSuccessful/ipn.log` | PayPal IPN request/response log |
+
+Set these paths to be writable by the web server user (`www-data` on Debian/Ubuntu, `apache` on RHEL/CentOS):
+
+```bash
+chmod 664 admin/dashboard/data-view/view-1/View1.csv
+chmod 664 admin/dashboard/data-view/view-2/View2.csv
+chmod 664 demographics/output.mysql
+chmod 664 likert/output.mysql
+chmod 664 finish/debug.txt
+chmod 664 purchaseSuccessful/ipn.log
+```
+
+## Database Credentials File
+
+Database credentials are stored in `src/login.php`. This file is **not** distributed with the application source and must be created manually on the server after deployment.
+
+<Warning>
+  Never commit `src/login.php` to version control. It contains your database hostname, username, and password in plain text. Add it to your `.gitignore` before your first commit and verify it is excluded before pushing to any repository.
+</Warning>
+
+The format expected by the application is:
+
+```php
+<?php
+$host = "your-db-host";
+$user = "your-db-user";
+$pass = "your-db-password";
+$dtbs = "Quiz";
+?>
+```
+
+The variable names `$host`, `$user`, `$pass`, and `$dtbs` are referenced directly throughout the application via `require_once`. Do not rename them.
+
+## Pre-Deployment Checklist
+
+Work through these steps in order before uploading your application files.
+
+<Steps>
+  <Step title="Provision a LAMP or LEMP Server">
+    Confirm your hosting environment runs Linux with Apache or Nginx and has PHP available. A shared host, VPS, or cloud instance running Ubuntu 20.04+ or equivalent is suitable.
+  </Step>
+  <Step title="Enable Required PHP Extensions">
+    Verify that `mysqli`, `session`, `mail`, and `curl` are all active. Run `php -m | grep -E 'mysqli|curl'` on the server or check your host's PHP configuration panel.
+  </Step>
+  <Step title="Create the Quiz Database">
+    Log in to MySQL and create the `Quiz` database. See [Database Setup](/deployment/database-setup) for the full schema and script execution order.
+  </Step>
+  <Step title="Create src/login.php">
+    Create `src/login.php` on the server with your database credentials as shown above. Confirm the file is excluded from version control.
+  </Step>
+  <Step title="Set Write Permissions">
+    Grant write access to the six paths listed in the File System Write Permissions section above.
+  </Step>
+  <Step title="Configure Session Timeout">
+    Review the `$timeout` value in `src/timeout.php` and adjust it to match your institution's session policy.
+  </Step>
+  <Step title="Configure PayPal IPN">
+    Set the IPN notification URL in your PayPal account to point to `purchaseSuccessful/authenticate_ipn.php` over HTTPS. See [PayPal Integration](/deployment/paypal-integration) for full details.
+  </Step>
+</Steps>

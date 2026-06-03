@@ -1,72 +1,89 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "MPADQ",
+  "theme": "almond",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
-  },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "primary": "#7E297E",
+    "light": "#cc6699",
+    "dark": "#4a0a4a"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/ijmeisner/einerlei"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/ijmeisner/einerlei"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "User Guide",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "getting-started/access-keys",
+              "getting-started/taking-the-quiz"
+            ]
+          },
+          {
+            "group": "Questionnaire Sections",
+            "pages": [
+              "questionnaire/demographic-section",
+              "questionnaire/likert-section",
+              "questionnaire/results"
+            ]
+          },
+          {
+            "group": "Understanding Your Scores",
+            "pages": [
+              "scores/overview",
+              "scores/symptomatology",
+              "scores/contributing-factors"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Admin Guide",
+        "groups": [
+          {
+            "group": "Admin Dashboard",
+            "pages": [
+              "admin/overview",
+              "admin/authentication",
+              "admin/key-management"
+            ]
+          },
+          {
+            "group": "Content Management",
+            "pages": [
+              "admin/editing-questions",
+              "admin/editing-score-text"
+            ]
+          },
+          {
+            "group": "Data & Reporting",
+            "pages": [
+              "admin/data-views",
+              "admin/exporting-data"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/requirements",
+              "deployment/database-setup",
+              "deployment/paypal-integration"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

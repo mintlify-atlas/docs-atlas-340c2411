@@ -1,0 +1,233 @@
+---
+title: "MPADQ Database Setup: Schema and Initial Data"
+sidebarTitle: "Database Setup"
+description: "Create and populate the MySQL database for the MPADQ. Run the provided SQL scripts in order to set up all tables and seed the initial data."
+---
+
+The MPADQ uses a single MySQL database named `Quiz` that holds license keys, administrator credentials, demographic survey data, Likert questionnaire content, and computed results. All tables use the InnoDB storage engine to enforce foreign-key relationships. You must create the database and run the SQL setup scripts in the exact order described below before the application will function correctly.
+
+## Create the Database
+
+Log in to MySQL as a user with `CREATE` privileges and run:
+
+```sql
+CREATE DATABASE Quiz CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Then create a dedicated application user and grant it the permissions the application needs:
+
+```sql
+CREATE USER 'quiz_app'@'localhost' IDENTIFIED BY 'your-strong-password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON Quiz.* TO 'quiz_app'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+Record the hostname, username, and password — you will need them when creating `src/login.php`.
+
+## Configure src/login.php
+
+Before running any SQL scripts, create the credentials file that the application requires. This file must exist on the server at `src/login.php` and must **not** be committed to version control.
+
+```php
+<?php
+$host = "your-db-host";
+$user = "quiz_app";
+$pass = "your-strong-password";
+$dtbs = "Quiz";
+?>
+```
+
+<Warning>
+  The default admin account inserted by `adminUser.mysql` uses the username `user1` and the password `test` (stored as the MD5 hash `098f6bcd4621d373cade4e832627b4f6`). **Change this password immediately after running the setup scripts.** MD5 is not a secure password hashing algorithm for modern systems — update the admin password through the admin dashboard as soon as the application is running.
+</Warning>
+
+## Run the SQL Setup Scripts
+
+Execute the scripts below in the order listed. Each script targets the `Quiz` database via a `USE Quiz;` statement at the top, so you can run them from any working directory.
+
+<Steps>
+  <Step title="Create the License Table">
+    Run `mysql/keyTable.mysql` to create the `License` table, which stores all issued license keys.
+
+    ```bash
+    mysql -u quiz_app -p Quiz < mysql/keyTable.mysql
+    ```
+
+    This creates:
+
+    ```sql
+    CREATE TABLE License(
+      id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      licenseKey VARCHAR(255) NOT NULL UNIQUE,
+      active     BOOL NOT NULL,
+      PRIMARY KEY(id)
+    ) ENGINE = INNODB;
+    ```
+
+    Each row holds one MD5-hashed license key. The `active` flag is set to `true` when a key is issued and flipped to `false` after the quiz is completed.
+  </Step>
+
+  <Step title="Create the admins Table and Insert Default Admin">
+    Run `mysql/adminUser.mysql` to create the `admins` table and insert the default administrator account.
+
+    ```bash
+    mysql -u quiz_app -p Quiz < mysql/adminUser.mysql
+    ```
+
+    This creates:
+
+    ```sql
+    CREATE TABLE admins(
+      id       INT PRIMARY KEY AUTO_INCREMENT,
+      username VARCHAR(255),
+      password VARCHAR(255)
+    );
+
+    INSERT INTO admins VALUES (0, 'user1', '098f6bcd4621d373cade4e832627b4f6');
+    ```
+
+    The inserted password is the MD5 hash of `test`. Change it immediately after setup.
+  </Step>
+
+  <Step title="Create Demographic Tables and Seed Questions">
+    Run `mysql/demographic/demographicTables.mysql` to create the demographic survey tables and insert the 14 questions shown to respondents before the Likert section.
+
+    ```bash
+    mysql -u quiz_app -p Quiz < mysql/demographic/demographicTables.mysql
+    ```
+
+    This creates `DemographicQuestion` and `DemographicAnswer`, then inserts the 14 survey questions, including items for gender, age, years of study, instrument/voice type, performance history, health conditions, substance use, and professional goals.
+  </Step>
+
+  <Step title="Create Likert Tables and Seed Categories">
+    Run `mysql/likert/likertTables.mysql` to create the five Likert-related tables and seed the broad and sub-category names.
+
+    ```bash
+    mysql -u quiz_app -p Quiz < mysql/likert/likertTables.mysql
+    ```
+
+    This creates `LikertAnswerBroadCategory`, `LikertAnswerSubCategory`, `LikertQuestion`, `LikertValue`, and `LikertAnswer`. It then inserts the two broad categories — **Symptomatology** and **Contributing Factors** — along with all 24 sub-categories (3 under Symptomatology and 21 under Contributing Factors).
+  </Step>
+
+  <Step title="Create Results Tables">
+    Run `mysql/likert/likertResults.mysql` to create the two tables that store computed quiz results.
+
+    ```bash
+    mysql -u quiz_app -p Quiz < mysql/likert/likertResults.mysql
+    ```
+
+    This creates:
+
+    ```sql
+    CREATE TABLE BroadCategoryResult(
+      license_id        INT UNSIGNED NOT NULL,
+      broad_category_id INT UNSIGNED NOT NULL,
+      result            INT
+    ) ENGINE = INNODB;
+
+    CREATE TABLE SubCategoryResult(
+      license_id      INT UNSIGNED NOT NULL,
+      sub_category_id INT UNSIGNED NOT NULL,
+      result          INT
+    ) ENGINE = INNODB;
+    ```
+
+    Results are written to these tables by `finish/index.php` once a respondent completes the full questionnaire.
+  </Step>
+
+  <Step title="Seed Likert Questions">
+    Run `mysql/likert/likertfill.mysql` to insert the Likert scale values and populate the `LikertQuestion` table with all questionnaire items.
+
+    ```bash
+    mysql -u quiz_app -p Quiz < mysql/likert/likertfill.mysql
+    ```
+
+    This first deletes any existing rows in `LikertValue` and `LikertQuestion`, then inserts the valid answer values (`0`, `25`, `50`, `75`, `100` for scored responses; `6` represents N/A) and all questionnaire items. Each question row records its broad category, one or two sub-categories, and whether it is scored inversely.
+  </Step>
+</Steps>
+
+<Info>
+  The `mysql/tablefill.mysql` script populates placeholder result-report text (`text_area1` and `text_area2`) for each sub-category in `LikertAnswerSubCategory`. Run it after the steps above if your deployment requires pre-filled report text, then replace the placeholder content with the actual interpretive copy before going live.
+</Info>
+
+## Table Schema Reference
+
+The tables below are the core of the data model. All foreign keys are enforced by InnoDB.
+
+### License
+
+Stores one row per issued license key. Created by `mysql/keyTable.mysql`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `INT UNSIGNED` AUTO_INCREMENT | Primary key |
+| `licenseKey` | `VARCHAR(255)` UNIQUE | MD5 hash of the 10-character alphanumeric key sent to the buyer |
+| `active` | `BOOL` | `true` while quiz is in progress; set to `false` on completion |
+
+### admins
+
+Stores administrator login credentials. Created by `mysql/adminUser.mysql`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `INT` AUTO_INCREMENT | Primary key |
+| `username` | `VARCHAR(255)` | Admin username |
+| `password` | `VARCHAR(255)` | MD5 hash of the password |
+
+### DemographicQuestion / DemographicAnswer
+
+Created by `mysql/demographic/demographicTables.mysql`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `INT UNSIGNED` AUTO_INCREMENT | Primary key (`DemographicQuestion`) |
+| `question` | `VARCHAR(255)` UNIQUE | Question text |
+| `license_id` | `INT UNSIGNED` FK → `License(id)` | Ties the answer to a specific respondent (`DemographicAnswer`) |
+| `demographic_question_id` | `INT UNSIGNED` FK → `DemographicQuestion(id)` | Which question was answered |
+| `answer` | `VARCHAR(255)` | Respondent's free-text or selected answer |
+
+### LikertQuestion
+
+Created by `mysql/likert/likertTables.mysql`. Seeded by `mysql/likert/likertfill.mysql`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `INT UNSIGNED` AUTO_INCREMENT | Primary key |
+| `question` | `VARCHAR(255)` UNIQUE | Question text shown to respondent |
+| `broad_category_id` | `INT UNSIGNED` FK → `LikertAnswerBroadCategory(id)` | Symptomatology or Contributing Factors |
+| `sub_category_id1` | `INT UNSIGNED` FK → `LikertAnswerSubCategory(id)` | Primary sub-category |
+| `sub_category_id2` | `INT UNSIGNED` NULL FK → `LikertAnswerSubCategory(id)` | Optional second sub-category |
+| `score_inversely` | `BOOL` | When `true`, a response of 1 maps to 100 and 5 maps to 0 |
+
+### LikertAnswer
+
+Created by `mysql/likert/likertTables.mysql`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `license_id` | `INT UNSIGNED` FK → `License(id)` | Respondent identifier |
+| `question_id` | `INT UNSIGNED` FK → `LikertQuestion(id)` | Which question was answered |
+| `answer` | `TINYINT UNSIGNED` FK → `LikertValue(input)` | One of: 0, 25, 50, 75, 100, or 6 (N/A) |
+
+### SubCategoryResult / BroadCategoryResult
+
+Created by `mysql/likert/likertResults.mysql`. Written by `finish/index.php`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `license_id` | `INT UNSIGNED` FK → `License(id)` | Respondent identifier |
+| `sub_category_id` / `broad_category_id` | `INT UNSIGNED` FK | Category the result belongs to |
+| `result` | `INT` | Computed average score for that category (0–100 scale) |
+
+## Verify the Setup
+
+After running all scripts, confirm the database is correctly populated:
+
+```sql
+USE Quiz;
+SHOW TABLES;
+SELECT COUNT(*) FROM DemographicQuestion;   -- should return 14
+SELECT COUNT(*) FROM LikertAnswerBroadCategory; -- should return 2
+SELECT COUNT(*) FROM LikertAnswerSubCategory;   -- should return 24
+SELECT username FROM admins;                -- should return 'user1'
+```

@@ -1,0 +1,110 @@
+{
+  "projectType": "saas",
+  "projectName": "MPADQ — Music Performance Anxiety Diagnostic Questionnaire",
+  "projectDescription": "A web-based assessment platform that delivers the companion diagnostic questionnaire for Dr. Heather Nicole Winter's book 'Take Charge of Your Performance Anxiety,' scoring musicians across symptom and contributing-factor categories and providing personalised results.",
+  "theme": "almond",
+  "primaryColor": "#7E297E",
+  "lightColor": "#cc6699",
+  "darkColor": "#4a0a4a",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "User Guide",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "getting-started/access-keys",
+              "getting-started/taking-the-quiz"
+            ]
+          },
+          {
+            "group": "Questionnaire Sections",
+            "pages": [
+              "questionnaire/demographic-section",
+              "questionnaire/likert-section",
+              "questionnaire/results"
+            ]
+          },
+          {
+            "group": "Understanding Your Scores",
+            "pages": [
+              "scores/overview",
+              "scores/symptomatology",
+              "scores/contributing-factors"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Admin Guide",
+        "groups": [
+          {
+            "group": "Admin Dashboard",
+            "pages": [
+              "admin/overview",
+              "admin/authentication",
+              "admin/key-management"
+            ]
+          },
+          {
+            "group": "Content Management",
+            "pages": [
+              "admin/editing-questions",
+              "admin/editing-score-text"
+            ]
+          },
+          {
+            "group": "Data & Reporting",
+            "pages": [
+              "admin/data-views",
+              "admin/exporting-data"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/requirements",
+              "deployment/database-setup",
+              "deployment/paypal-integration"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "License-key–gated access: each book purchase generates a unique 10-character key that activates exactly one quiz attempt",
+    "15-question demographic section capturing musician background, instrument, career status, and health factors",
+    "157-question Likert-scale assessment scored on a 1–5 (Strongly Disagree to Strongly Agree) scale with N/A option",
+    "Two broad scoring categories: Symptomatology (Physical, Cognitive, Behavioral) and Contributing Factors (21 sub-categories)",
+    "Automatic weighted scoring with sub-category and broad-category averages stored per user in MySQL",
+    "Admin dashboard for key generation, question editing, score-text editing, and CSV data export",
+    "PayPal IPN integration for automated key delivery on purchase",
+    "Results review: users can re-enter their key post-completion to view their personalised scores"
+  ],
+  "publicApiSurface": [
+    "GET / — Landing page; key entry form",
+    "POST /keySubmit.php — Validates key, starts session, redirects to quiz or results",
+    "GET /start/ — Quiz introduction and initialisation page",
+    "GET /demographics/ — Renders 15-question demographic form from demographicQuestions.json",
+    "POST /demographics/questionSubmit.php — Persists demographic answers to DemographicAnswer table",
+    "GET /likert/ — Renders 157-question Likert form (10 questions per page) from likertQuestions.json",
+    "POST /likert/questionSubmit.php — Persists Likert answers to LikertAnswer table",
+    "GET /finish/ — Computes sub-category and broad-category scores; renders personalised results page",
+    "POST /purchaseSuccessful/authenticate_ipn.php — PayPal IPN handler; generates and emails a license key on verified payment",
+    "GET /admin/ — Admin login page",
+    "POST /admin/dashboard/authenticate.php — Authenticates admin credentials",
+    "GET /admin/dashboard/ — Admin dashboard home",
+    "GET/POST /admin/dashboard/keygen/ — Bulk license key generation",
+    "GET /admin/dashboard/keygen/keys/ — Lists and downloads generated keys",
+    "GET /admin/dashboard/data-view/view-1/ — CSV export: per-user raw answers (demographic + Likert)",
+    "GET /admin/dashboard/data-view/view-2/ — CSV export: per-user scored results",
+    "GET/POST /admin/dashboard/question-edit/ — Edit demographic and Likert questions",
+    "GET/POST /admin/dashboard/understanding-your-scores-edit/ — Edit broad/sub-category result explanatory text",
+    "GET/POST /admin/dashboard/change-password/ — Change admin password",
+    "GET/POST /admin/dashboard/update-email/ — Update admin contact email",
+    "GET /admin/dashboard/logout.php — Destroy admin session"
+  ]
+}
