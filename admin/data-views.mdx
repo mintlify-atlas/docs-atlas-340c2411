@@ -132,6 +132,6 @@ Both views draw from the same underlying MySQL tables in the `Quiz` database:
     Maps `license_id` to `licenseKey` and `active` status. Only records with `active = false` (completed quizzes) appear in the exports.
   </Card>
   <Card title="SubCategoryResult / BroadCategoryResult" icon="chart-bar">
-    Store computed sub-category and broad-category scores per respondent. These tables exist in the schema and are available for future reporting views.
+    Store computed sub-category and broad-category scores per respondent. Written by `finish/index.php` after a respondent completes the questionnaire. Defined in `mysql/likert/likertResults.mysql`.
   </Card>
 </CardGroup>

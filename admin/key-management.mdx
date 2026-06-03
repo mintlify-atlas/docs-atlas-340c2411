@@ -1,5 +1,5 @@
 ---
-title: "Generating and Managing License Keys"
+title: "License Key Generation and Management for MPADQ Admins"
 sidebarTitle: "Key Management"
 description: "Generate bulk license keys for book purchasers, view all active and used keys, and download key batches as CSV files for distribution."
 ---
@@ -93,7 +93,7 @@ A key begins its life as **active** (`active = 1`) the moment it is inserted. Wh
 After generation you land on `/admin/dashboard/keygen/keys/`. This page:
 
 - Displays the plain-text keys in a read-only `<textarea>` — one key per line.
-- Provides a **DOWNLOAD** button that POSTs to `downloadKeys.php`.
+- Provides a **DOWNLOAD** button that submits a GET request to `downloadKeys.php`.
 
 `downloadKeys.php` performs the following:
 
@@ -103,10 +103,15 @@ After generation you land on `/admin/dashboard/keygen/keys/`. This page:
 4. Sends the file to the browser as an `application/octet-stream` download attachment.
 
 ```php
+$keyList   = $_SESSION['keyFile'];
+$keyOutput = print_r($keyList, true);
+
 $today    = date("m-d-Y");
 $fileName = "./keyArchive/keys_" . $today . ".csv";
 
+$output = fopen($fileName, "w") or die("Unable to open file!");
 file_put_contents($fileName, $keyOutput, FILE_APPEND);
+fclose($output);
 
 header('Content-Disposition: attachment; filename="' . basename($fileName) . '"');
 readfile($fileName);
@@ -139,7 +144,3 @@ keyArchive/keys_05-06-2016.csv
 ```
 
 Each CSV contains the plain-text keys from that batch, one per line. These files serve as the permanent record of which keys were issued on a given date and can be used to re-send keys if a distribution email is lost.
-
-## Automatic Key Generation via PayPal IPN
-
-In addition to manual bulk generation, the application also generates a single key automatically when a verified PayPal Instant Payment Notification (IPN) is received. The `authenticate_ipn.php` script calls the same `keygen()` function and inserts the resulting hashed key into the `License` table, then redirects the purchaser to `/purchaseSuccessful` where they can see their plain-text key. This path is fully automated and requires no admin interaction.

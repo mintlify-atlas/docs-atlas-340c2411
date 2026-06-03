@@ -10,7 +10,7 @@ The MPADQ admin area uses a simple username/password login form backed by a MySQ
 
 The login form lives at `/admin/` (served by `admin/index.php`). It presents two fields — **username** (labelled "email" in the placeholder) and **password** — plus a **Login** button and a separate **Recover Password** link.
 
-Submitting the form POSTs credentials to `admin/dashboard/authenticate.php`.
+Submitting the form POSTs credentials to `/admin/dashboard/authenticate.php`.
 
 ## How Authentication Works
 
@@ -50,7 +50,7 @@ if ($row['password'] == $hashedPwd) {
     **password** field.
   </Step>
   <Step title="Submit the form">
-    Click **Login**. The form POSTs to `admin/dashboard/authenticate.php`.
+    Click **Login**. The form POSTs to `/admin/dashboard/authenticate.php`.
   </Step>
   <Step title="Server validates credentials">
     `authenticate.php` hashes the submitted password with MD5 and compares it

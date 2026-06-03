@@ -21,13 +21,13 @@ The results page organizes scores at two levels of granularity, and each level h
 
 ### Database Schema
 
-Both tables share the same four-column structure:
+Both tables share the same structure, with `text_area1` and `text_area2` holding the editable interpretation text:
 
 ```sql
 -- Broad category interpretation text
 CREATE TABLE LikertAnswerBroadCategory (
-  category  VARCHAR(255) NOT NULL UNIQUE,
-  id        INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  category   VARCHAR(255) NOT NULL UNIQUE,
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   text_area1 TEXT,
   text_area2 TEXT,
   PRIMARY KEY(id)
@@ -35,8 +35,8 @@ CREATE TABLE LikertAnswerBroadCategory (
 
 -- Sub-category interpretation text
 CREATE TABLE LikertAnswerSubCategory (
-  category  VARCHAR(255) NOT NULL UNIQUE,
-  id        INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  category   VARCHAR(255) NOT NULL UNIQUE,
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
   text_area1 TEXT,
   text_area2 TEXT,
   PRIMARY KEY(id)
@@ -63,7 +63,7 @@ Choose the appropriate level and click **Edit** to open the text editor for that
 
 ## Editing Broad Category Text
 
-The two broad categories are **Symptomatology** and **Contributing Factors**. These are seeded into the database as:
+The two broad categories are **Symptomatology** and **Contributing Factors**, seeded into the database as:
 
 ```sql
 INSERT INTO LikertAnswerBroadCategory(category) VALUES("Symptomatology");
@@ -75,13 +75,13 @@ INSERT INTO LikertAnswerBroadCategory(category) VALUES("Contributing Factors");
     On the **Edit Understanding Your Scores Text** page, use the **Select a Broad Category** dropdown to choose either *Symptomatology* or *Contributing Factors*, then click **Edit**.
   </Step>
   <Step title="Edit the two text areas">
-    You are redirected to `/admin/dashboard/understanding-your-scores-edit/edit-broad/`. The page fetches the current `text_area1` and `text_area2` values for the chosen category and pre-fills both multi-line text areas.
+    You are redirected to `/admin/dashboard/understanding-your-scores-edit/edit-broad/`. The page receives the selected `id` via POST, queries `text_area1`, `text_area2`, and `category` from `LikertAnswerBroadCategory`, and pre-fills both multi-line text areas.
 
-    - **Upper text area (`text_area1`)** — Write the introductory text that appears before the user's broad category score. This is a good place for a brief explanation of what the category measures.
-    - **Lower text area (`text_area2`)** — Write the interpretation text that appears after the score. The page labels this area: *"The following text is displayed after a user's score for [Category]."* Use this field to explain what a high or low score means in clinical or practical terms.
+    - **Upper text area (`text_area1`)** — Write the introductory text that appears before the user's broad category score.
+    - **Lower text area (`text_area2`)** — Write the interpretation text that appears after the score. The page labels this area: *"The following text is displayed after a user's score for [Category]."*
   </Step>
   <Step title="Submit your changes">
-    Click **Submit**. The form POSTs to `/admin/dashboard/understanding-your-scores-edit/confirm/` with a hidden field `cat_type` set to `Broad`. The confirm page applies the following sanitization to both fields before writing:
+    Click **Submit**. The form POSTs `first`, `second`, `id`, and a hidden `cat_type` field set to `Broad` to `/admin/dashboard/understanding-your-scores-edit/confirm/`. The confirm page applies the following sanitization to both fields before writing:
 
     - `real_escape_string()` — escapes SQL special characters
     - `stripslashes()` — removes escape slashes
@@ -104,20 +104,42 @@ INSERT INTO LikertAnswerBroadCategory(category) VALUES("Contributing Factors");
 
 ## Editing Sub-Category Text
 
-There are 24 sub-categories. Three fall under **Symptomatology**:
+There are 24 sub-categories in total. Three fall under **Symptomatology**:
 
 - Physical Symptoms
 - Cognitive Symptoms
 - Behavioral Symptoms
 
-The remaining 21 fall under **Contributing Factors**, including sub-categories such as *Student-Teacher Relationship*, *Perfectionism and Self-Criticism*, *Self-Concept of Anxiety*, *Introversion*, *The Audition Factor*, and others.
+The remaining 21 fall under **Contributing Factors**:
+
+- Student-Teacher Relationship
+- Sense of Belonging at School/Career
+- Generalized Anxiety and Stress
+- Perfectionism and Self-Criticism
+- Self-Concept of Performance Ability and Confidence
+- Self-Esteem
+- Self-Concept of Long-Term Stakes
+- Personal Support Structure in People and Activities
+- Security, Happiness and Support in Romantic Relationships
+- Physical and Emotional Health
+- Spiritual and/or Religious Support System and/or Beliefs
+- Feelings of Being Out-of-Control
+- Controlling Personality and Competitiveness
+- Self-Concept of Anxiety
+- Self-Concept of Focus
+- Self-Concept of Musical and/or Performance Preparation
+- Conflict Resolution Inclination
+- Introversion
+- General Negativity
+- Personal Drive/Motivation
+- The Audition Factor
 
 <Steps>
   <Step title="Select a sub-category">
     On the **Edit Understanding Your Scores Text** page, use the **Select a Sub Category** dropdown to choose the sub-category you want to update, then click **Edit**.
   </Step>
   <Step title="Edit the two text areas">
-    You are redirected to `/admin/dashboard/understanding-your-scores-edit/edit-sub/`. The page queries `LikertAnswerSubCategory` for the selected ID and pre-fills the same two text areas:
+    You are redirected to `/admin/dashboard/understanding-your-scores-edit/edit-sub/`. The page receives the selected `id` via POST, queries `text_area1`, `text_area2`, and `category` from `LikertAnswerSubCategory`, and pre-fills the same two text areas:
 
     - **Upper text area (`text_area1`)** — Introductory text shown before the user's sub-category score.
     - **Lower text area (`text_area2`)** — Interpretation text shown after the score. The page labels this: *"The following text is displayed after a user's score for [Sub-Category]."*
@@ -136,7 +158,7 @@ The remaining 21 fall under **Contributing Factors**, including sub-categories s
 </Steps>
 
 <Note>
-  Text changes take effect immediately for **all users**, including those revisiting a previous quiz result via a saved link. There is no draft or staging mode — once you click **Submit** on the edit form, the updated text is live in the database and will be served by the results page (`finish/index.php`) on the next page load.
+  Text changes take effect immediately for all users. There is no draft or staging mode — once you click **Submit** on the edit form, the updated text is live in the database and will be served by the results page on the next page load.
 </Note>
 
 ---
@@ -144,7 +166,7 @@ The remaining 21 fall under **Contributing Factors**, including sub-categories s
 ## Writing Effective Interpretation Text
 
 <Tip>
-  The most actionable interpretation text points users toward specific resources. If the MPADQ is accompanied by a companion book or course curriculum, reference specific chapter numbers or section titles in `text_area2` for the relevant sub-categories. For example, a high score in *Perfectionism and Self-Criticism* could conclude with: *"See Chapter 4 for exercises on reframing self-critical thought patterns during practice sessions."* Concrete next steps give respondents a clear path forward rather than leaving them with a score and no context for how to act on it.
+  The most actionable interpretation text points users toward specific resources. If the MPADQ is accompanied by a companion book or course curriculum, reference specific chapter numbers or section titles in `text_area2` for the relevant sub-categories. Concrete next steps give respondents a clear path forward rather than leaving them with a score and no context for how to act on it.
 </Tip>
 
 Keep the following guidelines in mind when drafting or revising score text:

@@ -1,5 +1,5 @@
 ---
-title: "Editing Demographic and Likert Scale Questions"
+title: "Editing Demographic and Likert Questions"
 sidebarTitle: "Edit Questions"
 description: "Update the wording of any demographic or Likert scale question through the admin dashboard without touching the database directly."
 ---
@@ -43,10 +43,10 @@ SELECT id, question FROM DemographicQuestion;
     On the **Edit Demographic and Likert Questions** page (`/admin/dashboard/question-edit/`), locate the **Select Demographic Question** dropdown. All current question texts are listed. Choose the question you want to update and click **Edit**.
   </Step>
   <Step title="Review and edit the question text">
-    You are redirected to `/admin/dashboard/question-edit/dem-edit/`. The page fetches the current text for the selected question ID and pre-fills a `<textarea>`. Modify the wording as needed.
+    You are redirected to `/admin/dashboard/question-edit/dem-edit/`. The page receives the selected question `id` via POST, queries the current text from `DemographicQuestion`, and pre-fills a `<textarea>` with the existing wording. Modify the text as needed.
   </Step>
   <Step title="Submit your changes">
-    Click **Submit**. The form POSTs to `/admin/dashboard/question-edit/confirm/`, which runs the following sanitization pipeline before writing to the database:
+    Click **Submit**. The form POSTs `questionText`, `id`, and a hidden `tableName` field set to `Demographic` to `/admin/dashboard/question-edit/confirm/`. The confirm page sanitizes the input before writing to the database:
 
     - `real_escape_string()` — escapes special characters for the SQL query
     - `stripslashes()` — removes any auto-added escape slashes
@@ -60,7 +60,7 @@ SELECT id, question FROM DemographicQuestion;
     ```
   </Step>
   <Step title="Confirm the save">
-    The confirm page (`/admin/dashboard/question-edit/confirm/`) displays a **Changes Saved** heading and echoes the updated question text. It also regenerates `demographics/demographicQuestions.json` by querying all questions in `question_order` and rewriting the file — so the live quiz reflects the new wording immediately without a separate export step.
+    The confirm page (`/admin/dashboard/question-edit/confirm/`) displays a **Changes Saved** heading and echoes the updated question text. It also regenerates `demographics/demographicQuestions.json` by querying all questions ordered by `question_order` and rewriting the file — so the live quiz reflects the new wording immediately without a separate export step.
   </Step>
 </Steps>
 
@@ -81,7 +81,7 @@ CREATE TABLE LikertQuestion (
 ) ENGINE = INNODB;
 ```
 
-The dropdown is populated by:
+The dropdown on the selection page is populated by the query:
 
 ```sql
 SELECT id, question FROM LikertQuestion;
@@ -92,7 +92,7 @@ SELECT id, question FROM LikertQuestion;
     On the same **Edit Demographic and Likert Questions** page, scroll to the **Select Likert Question** dropdown. Choose the statement you want to update and click **Edit**.
   </Step>
   <Step title="Review and edit the question text">
-    You are redirected to `/admin/dashboard/question-edit/likert-edit/`. The page fetches the current text from `LikertQuestion` for the selected ID and pre-fills the `<textarea>`. Edit the statement wording as needed.
+    You are redirected to `/admin/dashboard/question-edit/likert-edit/`. The page receives the selected `id` via POST, queries the current text from `LikertQuestion`, and pre-fills the `<textarea>`. Edit the statement wording as needed.
   </Step>
   <Step title="Submit your changes">
     Click **Submit**. The form POSTs to the shared confirm page at `/admin/dashboard/question-edit/confirm/` with a hidden field `tableName` set to `Likert`. The same four-step sanitization pipeline runs, then the update is applied:
@@ -102,19 +102,19 @@ SELECT id, question FROM LikertQuestion;
     ```
   </Step>
   <Step title="Confirm the save">
-    The confirm page displays **Changes Saved** and echoes the updated statement. Use the **Select Another Question** link to make additional edits, or return to the **Dashboard**.
+    The confirm page displays **Changes Saved** and echoes the updated statement. Because the demographic and Likert flows share the same confirm page, `demographics/demographicQuestions.json` is also regenerated on every save — including Likert edits. Use the **Select Another Question** link to make additional edits, or return to the **Dashboard**.
   </Step>
 </Steps>
 
 <Warning>
-  **Changing question text affects all historical response records.** The `DemographicAnswer` and `LikertAnswer` tables store responses by foreign key reference to the question `id` — not by question text. This means existing answer rows remain numerically linked to the question even after a text change. However, any reports, exports, or visualizations that display question text alongside responses will show the *new* wording against *old* answers. Edits should be limited to minor phrasing corrections, typo fixes, or clarifications that do not alter the intended meaning of the question.
+  **Changing question text affects all historical response records.** The `DemographicAnswer` table stores responses linked by `demographic_question_id` (a foreign key to `DemographicQuestion.id`), and the `LikertAnswer` table stores responses linked by `question_id` (a foreign key to `LikertQuestion.id`). Existing answer rows remain numerically linked to the question even after a text change. Any reports or exports that display question text alongside responses will show the *new* wording against *old* answers. Edits should be limited to minor phrasing corrections, typo fixes, or clarifications that do not alter the intended meaning of the question.
 </Warning>
 
 ---
 
 ## Bulk Configuration via Text Files
 
-In addition to the dashboard editor, question text can be managed in bulk through plain-text configuration files in the `config/` directory of the application.
+In addition to the dashboard editor, question text can be referenced in bulk through plain-text configuration files in the `config/` directory of the application.
 
 <CardGroup cols={2}>
   <Card title="config/demographicQuestions.txt" icon="file-lines">
@@ -126,5 +126,5 @@ In addition to the dashboard editor, question text can be managed in bulk throug
 </CardGroup>
 
 <Info>
-  Two C++ utilities — `createDemographicsJSONfile.cc` and `createLikertJSONfile.cc` — can read these text files and regenerate the corresponding JSON files used by the quiz front end. If you update questions directly in the text files rather than through the dashboard, run the appropriate utility afterward to keep the JSON files in sync. The dashboard confirm page regenerates `demographicQuestions.json` automatically, but changes made exclusively via the text file require a manual utility run.
+  Two C++ utilities — `createDemographicsJSONfile.cc` and `createLikertJSONfile.cc` — located in `admin/dashboard/question-edit/`, read the corresponding plain-text question files and regenerate the JSON files used by the quiz front end. If you update questions directly in the text files rather than through the dashboard, compile and run the appropriate utility afterward to keep the JSON files in sync. The dashboard confirm page regenerates `demographicQuestions.json` automatically after every save, but changes made exclusively via the text files require a manual utility run.
 </Info>

@@ -120,14 +120,14 @@ Execute the scripts below in the order listed. Each script targets the `Quiz` da
 
     ```sql
     CREATE TABLE BroadCategoryResult(
-      license_id        INT UNSIGNED NOT NULL,
-      broad_category_id INT UNSIGNED NOT NULL,
+      license_id        INT UNSIGNED NOT NULL, FOREIGN KEY(license_id) REFERENCES License(id),
+      broad_category_id INT UNSIGNED NOT NULL, FOREIGN KEY(broad_category_id) REFERENCES LikertAnswerBroadCategory(id) ON UPDATE CASCADE,
       result            INT
     ) ENGINE = INNODB;
 
     CREATE TABLE SubCategoryResult(
-      license_id      INT UNSIGNED NOT NULL,
-      sub_category_id INT UNSIGNED NOT NULL,
+      license_id      INT UNSIGNED NOT NULL, FOREIGN KEY(license_id) REFERENCES License(id),
+      sub_category_id INT UNSIGNED NOT NULL, FOREIGN KEY(sub_category_id) REFERENCES LikertAnswerSubCategory(id) ON UPDATE CASCADE,
       result          INT
     ) ENGINE = INNODB;
     ```

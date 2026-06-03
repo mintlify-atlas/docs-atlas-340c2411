@@ -1,7 +1,7 @@
 ---
 title: "Your MPADQ Results: Reading and Revisiting Your Scores"
 sidebarTitle: "Results"
-description: "After submitting, the MPADQ computes your scores across Symptomatology and Contributing Factors categories. Learn how to read your results and revisit them later."
+description: "After submitting, the MPADQ computes scores across Symptomatology and Contributing Factors. Learn how to read your results and revisit them later."
 ---
 
 The moment you click **Submit** on the final Likert page, your browser is redirected to `/finish/` and your scores are computed server-side in real time. There is no waiting period — the results page loads fully populated with your scores the first time you see it. This page explains how those scores are calculated, how the results page is structured, and how you can return to your results at any time using your original license key.
@@ -56,7 +56,7 @@ An overall score is computed by averaging **all** non-N/A sub-category scores ac
 
 ### Score Display Format
 
-All scores are presented as percentages. Because answers were converted to a 0–100 scale when stored (see the [Likert Section](/questionnaire/likert-section)), a raw average of `75` is displayed as `75%`. An N/A result is shown as the string `"N/A"` rather than a number.
+Scores are stored as plain integers in `SubCategoryResult` and `BroadCategoryResult` — not as percentage values. The integer range happens to be 0–100 (because `LikertAnswer` stores responses on a 0–100 scale; see the [Likert Section](/questionnaire/likert-section)), and a `%` suffix is appended at display time by the PHP template. A stored value of `75` therefore appears as `75%` on screen. A stored value of `-1` is displayed as the string `N/A` rather than a number.
 
 ## Results Page Structure
 
@@ -101,12 +101,12 @@ Your results are saved permanently in two tables:
 SubCategoryResult
 ├── license_id       (FK → License.id)
 ├── sub_category_id  (FK → LikertAnswerSubCategory.id)
-└── result           INT  (-1 = N/A, or 0–100)
+└── result           INT  (integer: -1 = N/A, 0–100 = computed score)
 
 BroadCategoryResult
 ├── license_id        (FK → License.id)
 ├── broad_category_id (FK → LikertAnswerBroadCategory.id)
-└── result            INT  (-1 = N/A, or 0–100)
+└── result            INT  (integer: -1 = N/A, 0–100 = computed score)
 ```
 
 Because results are stored rather than recomputed on every visit, your scores will be identical every time you return to view them.

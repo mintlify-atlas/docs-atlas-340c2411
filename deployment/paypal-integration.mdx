@@ -64,7 +64,7 @@ When a `VERIFIED` IPN is received for a `QuizKey` item, the handler calls `gen_k
 2. **MD5-hashes the key** with `hash("md5", $licKey)`.
 3. **Checks for collisions** by querying `SELECT * FROM License WHERE licenseKey = '...'`. If the hash already exists, a new key is generated and checked again until a unique hash is found.
 4. **Inserts the new key** into the `License` table with `active = 1`.
-5. **Pre-populates answer rows** for the new respondent: 14 blank `DemographicAnswer` rows (one per demographic question) and one `LikertAnswer` row per questionnaire item, with a default value of `6` (N/A), ready to be overwritten when the respondent takes the quiz.
+5. **Pre-populates answer rows** for the new respondent: 15 blank `DemographicAnswer` rows (demographic question IDs 1–15) and one `LikertAnswer` row per questionnaire item, with a default value of `6` (N/A), ready to be overwritten when the respondent takes the quiz.
 6. **Returns the unhashed key** (the human-readable string emailed to the buyer).
 
 <Note>

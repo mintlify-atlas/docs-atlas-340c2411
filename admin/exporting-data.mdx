@@ -48,7 +48,7 @@ Both views draw from the following MySQL tables in the `Quiz` database:
     Each respondent's answers to the 15 demographic questions. Columns: `license_id`, `demographic_question_id`, `answer`.
   </Card>
   <Card title="LikertAnswer" icon="table">
-    Each respondent's numerical answers to the 157 Likert statements. Columns: `license_id`, `question_id`, `answer` (1–5 or 6 for N/A).
+    Each respondent's numerical answers to the 157 Likert statements. Columns: `license_id`, `question_id`, `answer` (0, 25, 50, 75, or 100; 6 = N/A).
   </Card>
   <Card title="SubCategoryResult" icon="chart-bar">
     Computed average scores for each of the 24 sub-categories per respondent. Columns: `license_id`, `sub_category_id`, `result`.

@@ -8,9 +8,9 @@ The Music Performance Anxiety Diagnostic Questionnaire (MPADQ) produces a detail
 
 ## How Scores Are Calculated
 
-Every scored question in the MPADQ uses a five-point Likert scale. Your raw answer is recorded as a number between 1 and 5, where 1 means "Strongly Disagree" and 5 means "Strongly Agree." Some questions are **scored inversely** — for those items, a higher agreement actually indicates a better outcome (for example, "I am a confident performer"), so the scale is flipped before averaging. The valid response values used in calculation are:
+Every scored question in the MPADQ uses a five-point Likert scale. When you submit the questionnaire, each answer is converted to a percentage value before being stored in the database — so the values the scoring engine works with are already in percentage form. Some questions are **scored inversely** (for example, "I am a confident performer"), meaning a higher agreement reflects a better outcome and the mapping is reversed. The stored percentage values are:
 
-| Raw Answer | Non-Inverted Value | Inverted Value |
+| Response | Standard Questions | Inversely Scored Questions |
 |---|---|---|
 | 1 — Strongly Disagree | 0% | 100% |
 | 2 — Disagree | 25% | 75% |
@@ -25,7 +25,7 @@ Selecting **N/A** (answer value 6) means that question is excluded entirely from
 
 <Steps>
   <Step title="Sub-category scores are computed first">
-    For each of the 24 sub-categories, the system collects all non-N/A Likert responses associated with that sub-category — including questions that belong to two sub-categories simultaneously — sums them, divides by the count of answered questions, and rounds to the nearest integer. The result is displayed as a percentage (0%–100%).
+    For each of the 24 sub-categories, the system collects all non-N/A Likert responses associated with that sub-category — including questions that belong to two sub-categories simultaneously — sums the stored percentage values, divides by the count of answered questions, and rounds to the nearest integer. The result is displayed as a percentage (0%–100%).
   </Step>
   <Step title="Broad category scores are averaged from sub-categories">
     The **Symptomatology** broad category score is the rounded average of its 3 sub-category scores (excluding any that scored N/A). The **Contributing Factors** broad category score is the rounded average of its 21 sub-category scores (excluding any that scored N/A).
